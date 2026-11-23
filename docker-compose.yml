@@ -7,29 +7,44 @@ services:
     environment:
       DATABASE_URL: sqlite:////data/audiosplit.db
       UPLOAD_DIR: /data/uploads
+      DATA_DIR: /data
+      MODEL_DIR: /models
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
+      CORS_ORIGINS: "*"
     volumes:
       - audiosplit_data:/data
+      - model_cache:/models
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
   worker:
     build: ./backend
-    command: celery -A app.celery_app.celery_app worker --loglevel=INFO
+    command: celery -A app.celery_app.celery_app worker --loglevel=INFO --concurrency=1
     environment:
       DATABASE_URL: sqlite:////data/audiosplit.db
       UPLOAD_DIR: /data/uploads
+      DATA_DIR: /data
+      MODEL_DIR: /models
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
     volumes:
       - audiosplit_data:/data
+      - model_cache:/models
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
   redis:
     image: redis:7-alpine
     command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
     volumes:
       - redis_data:/data
 volumes:
   audiosplit_data:
+  model_cache:
   redis_data:
