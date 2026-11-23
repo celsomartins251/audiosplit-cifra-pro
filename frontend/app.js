@@ -1,55 +1,185 @@
 (() => {
   "use strict";
-  const input = document.querySelector("#audio-file");
-  const dropzone = document.querySelector("#dropzone");
-  const fileInfo = document.querySelector("#file-info");
-  const startButton = document.querySelector("#start-analysis");
-  const status = document.querySelector("#upload-status");
-  const menuButton = document.querySelector("#menu-toggle");
-  const sidebar = document.querySelector("#sidebar");
-  let selectedFile = null;
+  const $ = (selector) => document.querySelector(selector);
+  const input = $("#audio-file"), dropzone = $("#dropzone"), fileInfo = $("#file-info");
+  const startButton = $("#start-analysis"), status = $("#upload-status");
+  const menuButton = $("#menu-toggle"), sidebar = $("#sidebar");
+  const apiInput = $("#api-url");
+  let selectedFile = null, activeJobId = null, project = null, polling = false;
 
   const allowedExtensions = new Set(["mp3", "wav", "flac", "m4a", "ogg"]);
-  const formatBytes = (bytes) => {
+  const savedApi = localStorage.getItem("audiosplit-api-url") || "http://localhost:8000";
+  apiInput.value = savedApi;
+
+  function apiBase() {
+    const value = apiInput.value.trim().replace(/\/+$/, "");
+    if (!/^https?:\/\//i.test(value)) throw new Error("Informe um endereço HTTP ou HTTPS válido para a API.");
+    return value;
+  }
+  function setStatus(message, isError = false) {
+    status.textContent = message;
+    status.classList.toggle("error-text", isError);
+  }
+  function formatBytes(bytes) {
     if (bytes < 1024) return bytes + " B";
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
     return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-  };
-
+  }
   function acceptFile(file) {
     if (!file) return;
     const extension = file.name.split(".").pop().toLowerCase();
-    if (!allowedExtensions.has(extension) || !file.type.startsWith("audio/")) {
-      selectedFile = null;
-      startButton.disabled = true;
-      fileInfo.hidden = true;
-      status.textContent = "Formato não reconhecido. Selecione MP3, WAV, FLAC, M4A ou OGG.";
-      return;
+    if (!allowedExtensions.has(extension) || (file.type && !file.type.startsWith("audio/"))) {
+      selectedFile = null; startButton.disabled = true; fileInfo.hidden = true;
+      setStatus("Formato inválido. Use MP3, WAV, FLAC, M4A ou OGG.", true); return;
     }
-    selectedFile = file;
-    fileInfo.hidden = false;
+    if (file.size > 250 * 1024 * 1024) {
+      selectedFile = null; startButton.disabled = true;
+      setStatus("O arquivo excede o limite inicial de 250 MB.", true); return;
+    }
+    selectedFile = file; fileInfo.hidden = false;
     fileInfo.textContent = file.name + " · " + formatBytes(file.size);
     startButton.disabled = false;
-    status.textContent = "Arquivo validado localmente. A análise na nuvem ainda não está conectada.";
+    setStatus("Arquivo selecionado. Pronto para enviar ao servidor.");
+  }
+  function setProgress(progress, message) {
+    $("#job-progress").hidden = false;
+    $("#progress-fill").style.width = Math.max(0, Math.min(100, progress || 0)) + "%";
+    $("#progress-value").textContent = Math.round(progress || 0) + "%";
+    $("#job-message").textContent = message || "Processando…";
+  }
+  async function startAnalysis() {
+    if (!selectedFile || polling) return;
+    let base;
+    try { base = apiBase(); } catch (error) { setStatus(error.message, true); return; }
+    startButton.disabled = true; polling = true;
+    setStatus("Enviando áudio…"); setProgress(0, "Enviando arquivo");
+    try {
+      const form = new FormData(); form.append("audio", selectedFile, selectedFile.name);
+      const response = await fetch(base + "/v1/jobs", { method: "POST", body: form });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.detail || "Falha ao enviar o áudio (" + response.status + ").");
+      activeJobId = payload.job_id;
+      setStatus("Áudio recebido. Processamento iniciado.");
+      await pollJob(base, activeJobId);
+    } catch (error) {
+      setStatus(error.message || "Não foi possível conectar à API.", true);
+      $("#job-message").textContent = "Falha no envio ou na conexão.";
+      polling = false; startButton.disabled = false;
+    }
+  }
+  async function pollJob(base, jobId) {
+    while (polling) {
+      const response = await fetch(base + "/v1/jobs/" + encodeURIComponent(jobId));
+      const job = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(job.detail || "Não foi possível consultar o processamento.");
+      setProgress(job.progress || 0, job.message || job.status);
+      if (job.status === "completed") {
+        const resultResponse = await fetch(base + "/v1/jobs/" + encodeURIComponent(jobId) + "/result");
+        const result = await resultResponse.json();
+        if (!resultResponse.ok) throw new Error(result.detail || "Resultado não disponível.");
+        project = result; renderProject(base, result);
+        setStatus("Análise concluída. Revise os resultados automáticos.");
+        polling = false; startButton.disabled = false; return;
+      }
+      if (job.status === "failed") {
+        throw new Error((job.error_code || "PROCESSING_FAILED") + ": " + (job.error_message || job.message || "Falha no processamento."));
+      }
+      await new Promise(resolve => setTimeout(resolve, 2500));
+    }
+  }
+  function renderProject(base, result) {
+    const stems = result.separation?.stems || {};
+    $("#stems-status").textContent = Object.keys(stems).length + " faixas geradas";
+    $("#stem-players").replaceChildren();
+    document.querySelectorAll(".stem").forEach(row => {
+      const name = row.dataset.stem, available = Boolean(stems[name]);
+      row.querySelector(".pending").textContent = available ? "Disponível" : "Indisponível";
+      row.querySelector(".pending").classList.toggle("ready", available);
+    });
+    Object.entries(stems).forEach(([name, stem]) => {
+      const wrapper = document.createElement("div"); wrapper.className = "stem-player";
+      const title = document.createElement("strong"); title.textContent = name.toUpperCase();
+      const audio = document.createElement("audio"); audio.controls = true; audio.preload = "none";
+      audio.src = base + stem.download_path;
+      wrapper.append(title, audio); $("#stem-players").append(wrapper);
+    });
+    const words = result.transcription?.words || [];
+    $("#lyrics-editor").value = words.map(item => item.label).join(" ");
+    $("#lyric-meta").textContent = words.length + " tokens reconhecidos · " + (result.transcription?.language || "idioma não identificado") + ". Os tempos por palavra permanecem no JSON.";
+    renderChordRows(result.chords || []);
+    $("#timeline-status").textContent = words.length + " palavras · " + (result.chords || []).length + " eventos";
+    $("#export-status").textContent = "Projeto pronto para revisão";
+    $("#save-edits").disabled = false; $("#export-json").disabled = false; $("#export-text").disabled = false;
+    $("#edit-status").textContent = result.chord_note || "Revise os eventos antes de exportar.";
+  }
+  function renderChordRows(chords) {
+    const body = $("#chord-rows"); body.replaceChildren();
+    $("#chord-count").textContent = chords.length + (chords.length === 1 ? " acorde" : " acordes");
+    if (!chords.length) {
+      const row = document.createElement("tr"), cell = document.createElement("td");
+      cell.colSpan = 3; cell.className = "empty-cell"; cell.textContent = "Nenhum evento harmônico confiável foi identificado.";
+      row.append(cell); body.append(row); return;
+    }
+    chords.forEach((chord, index) => {
+      const row = document.createElement("tr");
+      const timeCell = document.createElement("td"), chordCell = document.createElement("td"), confCell = document.createElement("td");
+      const time = document.createElement("input"); time.type = "number"; time.min = "0"; time.step = "0.01"; time.value = chord.start; time.dataset.index = index; time.dataset.field = "start";
+      const label = document.createElement("input"); label.type = "text"; label.value = chord.label; label.maxLength = 24; label.dataset.index = index; label.dataset.field = "label";
+      timeCell.append(time); chordCell.append(label); confCell.textContent = chord.confidence == null ? "—" : Math.round(chord.confidence * 100) + "%";
+      row.append(timeCell, chordCell, confCell); body.append(row);
+    });
+  }
+  function applyEdits() {
+    if (!project) return;
+    const words = project.transcription?.words || [];
+    const editedWords = $("#lyrics-editor").value.trim().split(/\s+/).filter(Boolean);
+    if (editedWords.length === words.length) {
+      words.forEach((word, index) => { word.label = editedWords[index]; });
+    } else {
+      project.transcription.edited_text = $("#lyrics-editor").value.trim();
+      project.transcription.edit_note = "Texto editado sem correspondência token a token; timestamps originais preservados.";
+    }
+    $("#chord-rows input").forEach; // no-op removed by browser parser
+    document.querySelectorAll("#chord-rows input").forEach((field) => {
+      const index = Number(field.dataset.index), key = field.dataset.field;
+      if (project.chords[index]) project.chords[index][key] = key === "start" ? Number(field.value) : field.value.trim();
+    });
+    project.chords.sort((a, b) => a.start - b.start);
+    $("#edit-status").textContent = "Revisões aplicadas nesta sessão. Exporte o projeto para salvá-las.";
+    renderChordRows(project.chords);
+  }
+  function downloadFile(filename, content, mime) {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a"); anchor.href = url; anchor.download = filename;
+    document.body.append(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url);
+  }
+  function exportJson() {
+    if (!project) return;
+    downloadFile("audiosplit-cifra-pro-" + project.job_id + ".json", JSON.stringify(project, null, 2), "application/json");
+  }
+  function exportText() {
+    if (!project) return;
+    const events = [
+      ...(project.transcription?.words || []).map(item => ({ ...item, type: "LETRA" })),
+      ...(project.chords || []).map(item => ({ ...item, type: "ACORDE" }))
+    ].sort((a, b) => a.start - b.start);
+    const lines = events.map(item => item.start.toFixed(2) + "s\t" + item.type + "\t" + item.label);
+    downloadFile("audiosplit-eventos-" + project.job_id + ".txt", lines.join("\n"), "text/plain;charset=utf-8");
   }
 
   input.addEventListener("change", () => acceptFile(input.files[0]));
-  ["dragenter", "dragover"].forEach((eventName) => dropzone.addEventListener(eventName, (event) => {
-    event.preventDefault();
-    dropzone.classList.add("dragging");
-  }));
-  ["dragleave", "drop"].forEach((eventName) => dropzone.addEventListener(eventName, (event) => {
-    event.preventDefault();
-    dropzone.classList.remove("dragging");
-  }));
-  dropzone.addEventListener("drop", (event) => {
-    const file = event.dataTransfer.files[0];
-    acceptFile(file);
+  ["dragenter", "dragover"].forEach(name => dropzone.addEventListener(name, event => { event.preventDefault(); dropzone.classList.add("dragging"); }));
+  ["dragleave", "drop"].forEach(name => dropzone.addEventListener(name, event => { event.preventDefault(); dropzone.classList.remove("dragging"); }));
+  dropzone.addEventListener("drop", event => acceptFile(event.dataTransfer.files[0]));
+  startButton.addEventListener("click", startAnalysis);
+  $("#save-api").addEventListener("click", () => {
+    try { const value = apiBase(); localStorage.setItem("audiosplit-api-url", value); setStatus("Endereço da API salvo."); }
+    catch (error) { setStatus(error.message, true); }
   });
-  startButton.addEventListener("click", () => {
-    if (!selectedFile) return;
-    status.textContent = "Arquivo pronto. Próxima etapa: conectar a API de processamento; nenhuma separação foi executada.";
-  });
+  $("#save-edits").addEventListener("click", applyEdits);
+  $("#export-json").addEventListener("click", exportJson);
+  $("#export-text").addEventListener("click", exportText);
   menuButton.addEventListener("click", () => sidebar.classList.toggle("open"));
-  document.querySelectorAll(".nav-item").forEach((link) => link.addEventListener("click", () => sidebar.classList.remove("open")));
+  document.querySelectorAll(".nav-item").forEach(link => link.addEventListener("click", () => sidebar.classList.remove("open")));
 })();
