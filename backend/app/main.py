@@ -1,3 +1,4 @@
+import json
 import os
 from datetime import datetime, timezone
 from enum import Enum
@@ -6,22 +7,33 @@ from typing import Optional
 from uuid import uuid4
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from .database import Base, SessionLocal, engine
+from .database import Base, SessionLocal, apply_sqlite_compat_migrations, engine
 from .models import AnalysisJob
 from .tasks import process_analysis
 
 app = FastAPI(
     title="AudioSplit & Cifra Pro API",
-    version="0.2.0",
+    version="0.3.0",
     description="API de orquestração para separação de fontes e análise musical.",
+)
+origins = [item.strip() for item in os.getenv("CORS_ORIGINS", "*").split(",") if item.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
 )
 
 MAX_UPLOAD_BYTES = 250 * 1024 * 1024
 ALLOWED_SUFFIXES = {".mp3", ".wav", ".flac", ".m4a", ".ogg"}
 UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "/data/uploads"))
 Base.metadata.create_all(bind=engine)
+apply_sqlite_compat_migrations()
 
 
 class JobStatus(str, Enum):
@@ -39,8 +51,10 @@ class JobAccepted(BaseModel):
 
 
 class JobDetails(JobAccepted):
+    progress: int = 0
     error_code: Optional[str] = None
     error_message: Optional[str] = None
+    result_available: bool = False
 
 
 class TimedEvent(BaseModel):
@@ -70,7 +84,7 @@ async def health():
 
 @app.post("/v1/jobs", response_model=JobAccepted, status_code=202)
 async def create_analysis_job(audio: UploadFile = File(...)):
-    original_name = audio.filename or "audio"
+    original_name = Path(audio.filename or "audio").name
     suffix = Path(original_name).suffix.lower()
     if suffix not in ALLOWED_SUFFIXES:
         raise HTTPException(status_code=415, detail="Formato não suportado.")
@@ -90,21 +104,23 @@ async def create_analysis_job(audio: UploadFile = File(...)):
 
         created_at = datetime.now(timezone.utc)
         with SessionLocal() as db:
-            job = AnalysisJob(
+            db.add(AnalysisJob(
                 id=job_id,
                 status=JobStatus.queued.value,
-                original_filename=Path(original_name).name,
+                original_filename=original_name,
                 audio_path=str(destination),
                 created_at=created_at,
-            )
-            db.add(job)
+                updated_at=created_at,
+                progress=0,
+                message="Arquivo recebido; aguardando worker.",
+            ))
             db.commit()
         process_analysis.delay(job_id)
         return JobAccepted(
             job_id=job_id,
             status=JobStatus.queued,
             created_at=created_at,
-            message="Áudio armazenado e tarefa enviada à fila de processamento.",
+            message="Áudio recebido e enviado para processamento.",
         )
     except HTTPException:
         destination.unlink(missing_ok=True)
@@ -130,6 +146,33 @@ async def get_job(job_id: str):
             status=JobStatus(job.status),
             created_at=job.created_at,
             message=job.message or "Estado atual do processamento.",
+            progress=job.progress or 0,
             error_code=job.error_code,
             error_message=job.error_message,
+            result_available=bool(job.result_json),
         )
+
+
+@app.get("/v1/jobs/{job_id}/result")
+async def get_job_result(job_id: str):
+    with SessionLocal() as db:
+        job = db.get(AnalysisJob, job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail="Processamento não encontrado.")
+        if job.status != JobStatus.completed.value or not job.result_json:
+            raise HTTPException(status_code=409, detail="Resultado ainda não está disponível.")
+        return json.loads(job.result_json)
+
+
+@app.get("/v1/jobs/{job_id}/stems/{stem_name}")
+async def download_stem(job_id: str, stem_name: str):
+    if stem_name not in {"vocals", "drums", "bass", "other"}:
+        raise HTTPException(status_code=404, detail="Stem não encontrado.")
+    with SessionLocal() as db:
+        job = db.get(AnalysisJob, job_id)
+        if job is None or job.status != JobStatus.completed.value:
+            raise HTTPException(status_code=404, detail="Arquivo não encontrado.")
+        stem_path = Path("/data/jobs") / job_id / f"{stem_name}.wav"
+        if not stem_path.is_file():
+            raise HTTPException(status_code=404, detail="Arquivo de áudio não encontrado.")
+        return FileResponse(stem_path, media_type="audio/wav", filename=f"{stem_name}.wav")
