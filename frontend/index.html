@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#101010">
+  <meta name="description" content="Separação de faixas e sincronização precisa de cifras com a letra.">
+  <title>AudioSplit & Cifra Pro</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand"><span class="brand-mark">AS</span><div><strong>AudioSplit</strong><small>& Cifra Pro</small></div></div>
+      <nav aria-label="Navegação principal">
+        <a class="nav-item active" href="#projeto">Projeto</a>
+        <a class="nav-item" href="#faixas">Separação de faixas</a>
+        <a class="nav-item" href="#letra-cifras">Letra & cifras</a>
+        <a class="nav-item" href="#exportacao">Exportação</a>
+      </nav>
+      <div class="sidebar-note"><span class="status-dot"></span> Núcleo de análise em preparação</div>
+    </aside>
+    <main class="main-content">
+      <header class="topbar">
+        <button class="icon-button" id="menu-toggle" aria-label="Abrir ou recolher menu">☰</button>
+        <div><span class="eyebrow">ESTÚDIO DE ANÁLISE MUSICAL</span><h1>AudioSplit & Cifra Pro</h1></div>
+        <span class="version">ALPHA · 0.1</span>
+      </header>
+
+      <section class="intro panel" id="projeto">
+        <div>
+          <span class="eyebrow gold">SEPARAÇÃO + HARMONIA + SINCRONIZAÇÃO</span>
+          <h2>Ouça cada elemento. Entenda cada mudança.</h2>
+          <p>Envie uma música para preparar a análise. A separação e o reconhecimento musical serão processados na nuvem; esta interface será o espaço de revisão e edição.</p>
+        </div>
+        <div class="pipeline" aria-label="Etapas do processamento">
+          <span>Áudio</span><i>→</i><span>Stems</span><i>→</i><span>Letra</span><i>→</i><span>Acordes</span>
+        </div>
+      </section>
+
+      <section class="panel upload-panel">
+        <div class="section-heading"><div><span class="eyebrow">ETAPA 01</span><h2>Importar áudio</h2></div><span class="tag">MP3 · WAV · FLAC</span></div>
+        <label class="dropzone" for="audio-file" id="dropzone">
+          <span class="upload-icon">↑</span><strong>Selecione um arquivo de áudio</strong>
+          <span>ou arraste o arquivo para esta área</span>
+          <small>O arquivo será enviado para processamento seguro na nuvem.</small>
+          <input id="audio-file" type="file" accept="audio/mpeg,audio/wav,audio/flac,audio/*">
+        </label>
+        <div class="file-row" id="file-info" hidden></div>
+        <div class="actions"><button class="primary-button" id="start-analysis" disabled>Preparar análise</button><span class="helper" id="upload-status" role="status">Nenhum áudio selecionado.</span></div>
+      </section>
+
+      <section class="workspace-grid">
+        <section class="panel" id="faixas">
+          <div class="section-heading"><div><span class="eyebrow">ETAPA 02</span><h2>Separação de faixas</h2></div><span class="tag muted">Aguardando áudio</span></div>
+          <div class="stem-list">
+            <div class="stem"><span class="stem-icon">VO</span><div><strong>Voz</strong><small>Vocal principal e conteúdo vocal</small></div><span class="pending">Pendente</span></div>
+            <div class="stem"><span class="stem-icon">BT</span><div><strong>Bateria</strong><small>Percussão e elementos rítmicos</small></div><span class="pending">Pendente</span></div>
+            <div class="stem"><span class="stem-icon">BX</span><div><strong>Baixo</strong><small>Linha grave e fundamentais</small></div><span class="pending">Pendente</span></div>
+            <div class="stem"><span class="stem-icon">HM</span><div><strong>Harmonia</strong><small>Guitarras, piano e outros instrumentos</small></div><span class="pending">Pendente</span></div>
+          </div>
+          <p class="disclaimer">A divisão acima representa os grupos-alvo da primeira versão. A disponibilidade de stems individuais dependerá do modelo de separação selecionado e validado.</p>
+        </section>
+        <section class="panel" id="letra-cifras">
+          <div class="section-heading"><div><span class="eyebrow">ETAPA 03</span><h2>Letra sincronizada com cifras</h2></div><span class="tag muted">Timeline</span></div>
+          <div class="timeline-empty"><div class="wave-symbol">〰</div><strong>A timeline aparecerá aqui</strong><p>Palavras e eventos de acorde terão marcações de tempo independentes. A cifra será posicionada pela mudança harmônica detectada, não por uma divisão automática de compassos.</p></div>
+        </section>
+      </section>
+
+      <section class="panel export-panel" id="exportacao">
+        <div class="section-heading"><div><span class="eyebrow">ETAPA 04</span><h2>Revisão e exportação</h2></div><span class="tag muted">Disponível após análise</span></div>
+        <p>O editor permitirá corrigir palavras, acordes e seus pontos exatos de entrada antes de exportar a cifra sincronizada.</p>
+      </section>
+      <footer>AudioSplit & Cifra Pro <span>Precisão musical em primeiro lugar.</span></footer>
+    </main>
+  </div>
+  <script src="./app.js"></script>
+</body>
+</html>
