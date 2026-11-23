@@ -1,43 +1,48 @@
 # AudioSplit & Cifra Pro
 
-Aplicativo web para separação de fontes de áudio e sincronização temporal de cifras com a letra.
+Aplicativo para separação de fontes de áudio e sincronização temporal de cifras com a letra.
 
-## Objetivos do produto
+## Objetivos
 
-- Separar voz, bateria, baixo, guitarra, piano/teclado e outros instrumentos.
-- Transcrever a letra e manter timestamps por palavra; alinhamento por sílaba será refinado quando tecnicamente possível.
-- Reconhecer acordes, inversões, extensões e mudanças harmônicas com timestamps independentes.
-- Sincronizar cifras com a ocorrência real da mudança harmônica, inclusive antecipações e contratempos.
-- Permitir revisão manual de stems, letra, acordes e marcações temporais.
-- Exportar resultados em formatos úteis para músicos.
+- Separar voz, bateria, baixo e instrumentos harmônicos.
+- Transcrever a letra e manter timestamps por palavra; alinhamento silábico será avaliado.
+- Reconhecer acordes, inversões, extensões e mudanças harmônicas.
+- Sincronizar cifras pela ocorrência real da mudança, inclusive antecipações e contratempos.
+- Permitir revisão manual e exportação.
 
-## Arquitetura inicial
+## Estrutura atual
 
-O frontend será HTML, CSS e JavaScript, responsivo e adequado a dispositivos móveis. O processamento de áudio e inferência de modelos ficará em serviços Python na nuvem, executados por tarefas assíncronas. O navegador não tentará executar modelos pesados localmente.
+- `frontend/`: interface responsiva HTML, CSS e JavaScript.
+- `backend/app/`: API FastAPI, persistência SQLAlchemy e tarefas Celery.
+- `docker-compose.yml`: ambiente local com API, worker e Redis.
+- `docs/`: contratos de dados e arquitetura do pipeline.
 
-### Componentes previstos
+## Executar infraestrutura local
 
-- `frontend/`: interface do usuário e editor de timeline.
-- `backend/`: API e orquestração de jobs.
-- `worker/`: pipeline de processamento de áudio e modelos.
-- `docs/`: decisões de arquitetura, métricas e documentação.
+Requer Docker e Docker Compose:
 
-## Princípios de qualidade
+```bash
+docker compose up --build
+```
 
-- Não apresentar resultados simulados como inferência real.
-- Preservar timestamps, confiança e proveniência dos resultados.
-- Avaliar separação, transcrição, alinhamento e acordes com conjuntos de referência e métricas próprias.
-- Não posicionar cifras simplesmente no início de cada compasso: usar eventos harmônicos detectados e revisão humana.
-- Manter separação, transcrição e reconhecimento harmônico como módulos independentes, combinados numa timeline comum.
+- API: `http://localhost:8000`
+- OpenAPI: `http://localhost:8000/docs`
+- Health check: `http://localhost:8000/health`
 
-## Estado atual
+A API recebe arquivos de áudio em `POST /v1/jobs` e consulta o estado em `GET /v1/jobs/{job_id}`. O limite inicial de upload é 250 MB. Os arquivos e o banco SQLite ficam no volume Docker `audiosplit_data`.
 
-Estrutura inicial do repositório. Modelos de separação, ASR, alinhamento e reconhecimento de acordes ainda precisam ser selecionados por benchmark e integrados. Nenhuma precisão de produção é reivindicada nesta fase.
+## Estado técnico
 
-## Próximas etapas
+A recepção, persistência e fila assíncrona estão estruturadas. O worker ainda não executa separação, ASR, alinhamento ou reconhecimento de acordes: ele registra uma falha controlada e explícita até que os modelos sejam selecionados, integrados e testados. Portanto, não há ainda resultado musical real nem precisão de produção reivindicada.
 
-1. Criar o esqueleto executável da interface e da API.
-2. Definir contratos de dados e formato de timestamps.
-3. Implementar importação e validação de áudio.
-4. Construir pipeline de benchmark para separação, transcrição e reconhecimento harmônico.
-5. Integrar os melhores modelos e validar com músicas anotadas.
+SQLite é apenas para desenvolvimento. Antes de disponibilizar o serviço publicamente, será necessário migrar para banco gerenciado, armazenamento de objetos privado, autenticação, limites por usuário, política de retenção e observabilidade.
+
+## Critérios de validação
+
+- Separação: SI-SDR/SDR e avaliação auditiva por stem.
+- Letra: WER/CER, incluindo testes específicos de canto em português brasileiro.
+- Alinhamento: erro temporal de início/fim.
+- Acordes: precisão/recall de símbolos e F-score de fronteiras harmônicas.
+- Sincronização: erro temporal entre a mudança anotada e a cifra exibida.
+
+Consulte `docs/CONTRATOS-DE-DADOS.md` e `docs/ARQUITETURA-PIPELINE.md`.
