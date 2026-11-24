@@ -29,7 +29,7 @@ Abra a interface em `frontend/index.html` por um servidor estático ou habilite 
 4. Separação de quatro stems com Demucs `htdemucs_ft`: vocals, drums, bass e other.
 5. Transcrição da voz com faster-whisper, configurada inicialmente para português.
 6. Alinhamento forçado opcional com WhisperX/Wav2Vec2. Se o alinhador não carregar ou falhar, o pipeline mantém os timestamps estimados do ASR e registra a limitação.
-7. Estimativa de acordes por chroma CQT e templates, com eventos não sobrepostos.
+7. Estimativa de acordes por chroma CQT/templates no stem harmônico, com conferência do mix e eventos não sobrepostos.
 8. Estimativa de BPM e pulsos.
 9. Resultado JSON, consulta de estado e download individual dos stems.
 
