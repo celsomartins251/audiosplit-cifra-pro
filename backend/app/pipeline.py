@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+from importlib.metadata import PackageNotFoundError, version
 import shutil
 import subprocess
 import sys
@@ -21,6 +22,12 @@ ASR_LANGUAGE = os.getenv("ASR_LANGUAGE", "pt")
 ENABLE_FORCED_ALIGNMENT = os.getenv("ENABLE_FORCED_ALIGNMENT", "true").lower() in {"1", "true", "yes"}
 ALLOW_UNCLEARED_MODEL_WEIGHTS = os.getenv("ALLOW_UNCLEARED_MODEL_WEIGHTS", "false").lower() in {"1", "true", "yes"}
 _asr = None
+
+def _package_version(name: str):
+    try:
+        return version(name)
+    except PackageNotFoundError:
+        return "unknown"
 
 def _get_asr():
     global _asr
@@ -231,6 +238,25 @@ def run_pipeline(job_id: str, source_path: str, progress_callback, original_file
         "schema_version": "1.1",
         "job_id": job_id,
         "audio": {**audio_metadata, "source_filename": original_filename or source.name},
+        "model_metadata": {
+            "separation": {
+                "name": SEPARATION_MODEL,
+                "package_version": _package_version("demucs"),
+                "weights_license_status": "not_verified_for_commercial_use",
+            },
+            "transcription": {
+                "name": f"faster-whisper-{ASR_MODEL}",
+                "package_version": _package_version("faster-whisper"),
+            },
+            "alignment": {
+                "name": "WhisperX/Wav2Vec2" if transcription["alignment_method"] == "forced" else "ASR-estimated",
+                "package_version": _package_version("whisperx") if transcription["alignment_method"] == "forced" else None,
+            },
+            "chord_recognition": {
+                "name": "librosa-chroma-template-baseline",
+                "package_version": _package_version("librosa"),
+            },
+        },
         "separation": {
             "model": SEPARATION_MODEL,
             "stems": stem_result,
