@@ -335,7 +335,7 @@
       const markers = (assigned.get(index) || []).map(chord => "[" + chord.label + "]").join("");
       return markers + word.label;
     }).join(" ");
-    const title = (selectedFile?.name || "AudioSplit project").replace(/\.[^.]+$/, "");
+    const title = (project.audio?.source_filename || selectedFile?.name || "AudioSplit project").replace(/\.[^.]+$/, "").replace(/[{}\r\n]/g, " ");
     const content = "{title: " + title + "}\n{comment: ChordPro gerado pelo AudioSplit & Cifra Pro; cifras associadas à palavra temporalmente mais próxima. Consulte o JSON para timestamps exatos.}\n\n" + lyrics + "\n";
     downloadFile("audiosplit-" + project.job_id + ".pro", content, "text/plain;charset=utf-8");
   }
