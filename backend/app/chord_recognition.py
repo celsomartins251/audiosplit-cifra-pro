@@ -46,8 +46,11 @@ def recognize_chords(audio_path: str, window_seconds: float = 1.5, hop_seconds: 
     frames_per_window = max(2, int(window_seconds * sr / hop))
     frames_per_hop = max(1, int(hop_seconds * sr / hop))
     events = []
-    for start_frame in range(0, chroma.shape[1], frames_per_hop):
-        end_frame = min(chroma.shape[1], start_frame + frames_per_window)
+    for center_frame in range(0, chroma.shape[1], frames_per_hop):
+        # Classify a centered analysis window, but assign only its central hop interval.
+        # This prevents overlapping chord events in the exported timeline.
+        start_frame = max(0, center_frame - frames_per_window // 2)
+        end_frame = min(chroma.shape[1], center_frame + (frames_per_window + 1) // 2)
         if end_frame - start_frame < 2:
             continue
         profile = np.mean(chroma[:, start_frame:end_frame], axis=1)
@@ -64,8 +67,8 @@ def recognize_chords(audio_path: str, window_seconds: float = 1.5, hop_seconds: 
         # Conservative abstention: ambiguous frames are not forced into a chord.
         if best_score < 0.48 or margin < 0.015:
             continue
-        start = start_frame * hop / sr
-        end = min(len(y) / sr, end_frame * hop / sr)
+        start = center_frame * hop / sr
+        end = min(len(y) / sr, (center_frame + frames_per_hop) * hop / sr)
         events.append({
             "start": round(start, 3),
             "end": round(end, 3),
