@@ -36,7 +36,11 @@
       selectedFile = null; startButton.disabled = true;
       setStatus("O arquivo excede o limite inicial de 250 MB.", true); return;
     }
-    selectedFile = file; fileInfo.hidden = false;\n    const sourcePlayer = $("#source-player");\n    if (sourcePlayer.dataset.objectUrl) URL.revokeObjectURL(sourcePlayer.dataset.objectUrl);\n    sourcePlayer.dataset.objectUrl = URL.createObjectURL(file);\n    sourcePlayer.src = sourcePlayer.dataset.objectUrl; sourcePlayer.hidden = false;
+    selectedFile = file; fileInfo.hidden = false;
+    const sourcePlayer = $("#source-player");
+    if (sourcePlayer.dataset.objectUrl) URL.revokeObjectURL(sourcePlayer.dataset.objectUrl);
+    sourcePlayer.dataset.objectUrl = URL.createObjectURL(file);
+    sourcePlayer.src = sourcePlayer.dataset.objectUrl; sourcePlayer.hidden = false;
     fileInfo.textContent = file.name + " · " + formatBytes(file.size);
     startButton.disabled = false;
     setStatus("Arquivo selecionado. Pronto para enviar ao servidor.");
