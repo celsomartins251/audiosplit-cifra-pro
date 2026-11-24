@@ -44,7 +44,7 @@
         <input id="audio-file" type="file" accept="audio/*,.flac">
       </label>
       <div class="file-row" id="file-info" hidden></div>
-      <div class="actions"><button class="primary-button" id="start-analysis" disabled>Iniciar análise</button><span class="helper" id="upload-status" role="status">Nenhum áudio selecionado.</span></div>
+      <div class="actions"><button class="primary-button" id="start-analysis" disabled>Iniciar análise</button><span class="helper" id="upload-status" role="status">Nenhum áudio selecionado.</span></div>\n      <audio id="source-player" class="source-player" controls hidden></audio>
       <div class="job-progress" id="job-progress" hidden><div class="progress-track"><span id="progress-fill"></span></div><div class="progress-meta"><span id="job-message">Aguardando…</span><strong id="progress-value">0%</strong></div></div>
     </section>
 
@@ -67,7 +67,7 @@
         <div class="result-block"><div class="section-heading compact"><label>Eventos harmônicos — editáveis</label><span id="chord-count" class="tag muted">0 acordes</span></div>
           <div class="table-wrap"><table class="chord-table"><thead><tr><th>Entrada (s)</th><th>Acorde</th><th>Confiança</th></tr></thead><tbody id="chord-rows"><tr><td colspan="3" class="empty-cell">Os acordes aparecerão após a análise.</td></tr></tbody></table></div>
         </div>
-        <div class="actions"><button class="secondary-button" id="save-edits" disabled>Aplicar revisões</button><span class="helper" id="edit-status">Ajuste letra, acordes e entradas antes de exportar.</span></div>
+        <div class="actions"><button class="secondary-button" id="save-edits" disabled>Aplicar revisões</button><span class="helper" id="edit-status">Ajuste letra, acordes e entradas antes de exportar.</span></div>\n        <div class="result-block"><label>Eventos na linha do tempo — selecione para ouvir a partir do ponto</label><div id="timeline-events" class="timeline-events"><span class="empty-cell">A timeline será montada após a análise.</span></div></div>
       </section>
     </section>
 
