@@ -19,6 +19,7 @@ SEPARATION_MODEL = os.getenv("DEMUCS_MODEL", "htdemucs_ft")
 ASR_MODEL = os.getenv("WHISPER_MODEL", "small")
 ASR_LANGUAGE = os.getenv("ASR_LANGUAGE", "pt")
 ENABLE_FORCED_ALIGNMENT = os.getenv("ENABLE_FORCED_ALIGNMENT", "true").lower() in {"1", "true", "yes"}
+ALLOW_UNCLEARED_MODEL_WEIGHTS = os.getenv("ALLOW_UNCLEARED_MODEL_WEIGHTS", "false").lower() in {"1", "true", "yes"}
 _asr = None
 
 def _get_asr():
@@ -203,6 +204,8 @@ def run_pipeline(job_id: str, source_path: str, progress_callback):
     job_dir = DATA_DIR / "jobs" / job_id
     job_dir.mkdir(parents=True, exist_ok=True)
     source = Path(source_path)
+    if not ALLOW_UNCLEARED_MODEL_WEIGHTS:
+        raise RuntimeError("Modelo de separação com licença ainda não confirmada para este uso. Configure um modelo com direitos verificados ou habilite explicitamente apenas para testes privados.")
     progress_callback(3, "Verificando integridade e metadados do áudio")
     audio_metadata = _probe_audio(source)
     progress_callback(8, "Preparando áudio e iniciando separação")
