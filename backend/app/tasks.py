@@ -27,10 +27,11 @@ def process_analysis(self, job_id: str):
         job.message = "Worker iniciou o processamento."
         job.updated_at = datetime.now(timezone.utc)
         source_path = job.audio_path
+        original_filename = job.original_filename
         db.commit()
     try:
         import json
-        result = run_pipeline(job_id, source_path, update_progress)
+        result = run_pipeline(job_id, source_path, update_progress, original_filename)
         with SessionLocal() as db:
             job = db.get(AnalysisJob, job_id)
             if job:
