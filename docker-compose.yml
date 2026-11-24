@@ -47,7 +47,7 @@ services:
       WHISPER_COMPUTE_TYPE: int8
       ENABLE_FORCED_ALIGNMENT: "true"
       ALIGNMENT_DEVICE: cpu
-      ALLOW_UNCLEARED_MODEL_WEIGHTS: "true"
+      ALLOW_UNCLEARED_MODEL_WEIGHTS: "false"
     volumes:
       - audiosplit_data:/data
       - model_cache:/models
