@@ -16,6 +16,14 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
       CORS_ORIGINS: "*"
+      DEMUCS_MODEL: htdemucs_ft
+      DEMUCS_SHIFTS: "2"
+      WHISPER_MODEL: small
+      ASR_LANGUAGE: pt
+      WHISPER_DEVICE: cpu
+      WHISPER_COMPUTE_TYPE: int8
+      ENABLE_FORCED_ALIGNMENT: "true"
+      ALIGNMENT_DEVICE: cpu
     volumes:
       - audiosplit_data:/data
       - model_cache:/models
