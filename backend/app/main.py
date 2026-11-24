@@ -2,6 +2,8 @@ import json
 import mimetypes
 import math
 import os
+import io
+import zipfile
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
@@ -10,7 +12,7 @@ from uuid import uuid4
 
 from fastapi import Body, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from .database import Base, SessionLocal, apply_sqlite_compat_migrations, engine
@@ -216,6 +218,30 @@ async def download_source(job_id: str):
             raise HTTPException(status_code=404, detail="Áudio original não encontrado.")
         media_type = mimetypes.guess_type(source_path.name)[0] or "application/octet-stream"
         return FileResponse(source_path, media_type=media_type, filename=Path(job.original_filename).name)
+
+
+@app.get("/v1/jobs/{job_id}/stems.zip")
+async def download_all_stems(job_id: str):
+    """Gera ZIP com todos os stems WAV existentes para uma análise concluída."""
+    with SessionLocal() as db:
+        job = db.get(AnalysisJob, job_id)
+        if job is None or job.status != JobStatus.completed.value:
+            raise HTTPException(status_code=404, detail="Análise concluída não encontrada.")
+        job_dir = Path(os.getenv("DATA_DIR", "/data")) / "jobs" / job_id
+        names = ("vocals", "drums", "bass", "guitar", "piano", "other")
+        available = [name for name in names if (job_dir / f"{name}.wav").is_file()]
+        if not available:
+            raise HTTPException(status_code=404, detail="Nenhuma faixa separada foi encontrada.")
+        archive = io.BytesIO()
+        with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
+            for name in available:
+                bundle.write(job_dir / f"{name}.wav", arcname=f"{name}.wav")
+        archive.seek(0)
+        return StreamingResponse(
+            archive,
+            media_type="application/zip",
+            headers={"Content-Disposition": f'attachment; filename="audiosplit-stems-{job_id}.zip"'}
+        )
 
 
 @app.get("/v1/jobs/{job_id}/stems/{stem_name}")
