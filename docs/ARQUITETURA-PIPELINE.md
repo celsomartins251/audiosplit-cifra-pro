@@ -1,32 +1,49 @@
 # Arquitetura do pipeline de processamento
 
-## Fluxo atual
+## Fluxo implementado
 
-1. API recebe o arquivo e valida extensão e limite de tamanho.
-2. Arquivo recebe identificador aleatório e é armazenado fora da pasta pública.
-3. Registro do job é persistido no banco SQL.
-4. API envia o identificador para a fila Celery/Redis.
-5. Worker assume o job e atualiza seu estado.
-6. Enquanto os modelos não estiverem integrados, o worker marca o job como falha controlada com código explícito.
+1. API recebe o áudio, valida extensão e limite de 250 MB.
+2. Arquivo é armazenado em volume privado com UUID; nome original é preservado apenas como metadado.
+3. Job é persistido no banco SQL.
+4. Celery/Redis agenda a tarefa.
+5. Worker executa separação, transcrição, alinhamento opcional, harmonia e ritmo.
+6. Resultados e metadados são persistidos em JSON e no banco.
+7. API permite consultar o job, baixar o original/stems, reabrir projeto e salvar correções.
 
-## Próxima integração de modelos
+## Separação de fontes
 
-O worker será dividido em etapas independentes:
-- inspeção técnica e normalização do áudio;
-- separação de fontes (benchmark Demucs/MDX e alternativas);
-- transcrição vocal em português;
-- alinhamento temporal de palavras e, quando suportado, sílabas;
-- reconhecimento harmônico no mix e nas fontes relevantes;
-- consolidação de eventos numa timeline comum.
+- Modelo padrão: Demucs `htdemucs_ft`, quatro stems (vocals, drums, bass, other).
+- Perfil alternativo: `htdemucs_6s`, seis stems (vocals, drums, bass, guitar, piano, other).
+- O perfil de seis stems não é automaticamente considerado melhor; comparar SI-SDR e ouvir os stems no mesmo conjunto de referência.
+- O modelo e os pesos são baixados no primeiro processamento e armazenados no volume de cache.
 
-## Requisitos de qualidade
+## Voz e alinhamento
 
-Cada etapa deverá registrar versão do modelo, parâmetros, timestamps, confiança e artefatos produzidos. Resultados não serão apresentados como concluídos sem saída real e validação.
+- faster-whisper executa ASR no stem vocal, inicialmente configurado para português.
+- WhisperX/Wav2Vec2 executa alinhamento forçado opcional usando o texto reconhecido.
+- Quando o alinhador não carrega ou falha, o pipeline preserva os timestamps estimados pelo ASR e registra a razão.
+- Alinhamento de caracteres não é equivalente a segmentação silábica musical. Canto, vibrato, melismas, coros e sobreposição vocal exigem validação.
+
+## Harmonia e ritmo
+
+- Chroma CQT e templates reconhecem acordes no stem harmônico; o mix completo é usado como corroborador.
+- Eventos harmônicos são produzidos em intervalos não sobrepostos e carregam fonte e índice de similaridade.
+- O reconhecedor inclui tríades, tétrades e alguns acordes com extensões/alterações. Inversões e tensões complexas ainda exigem revisão.
+- Librosa estima BPM e pulsos. A fórmula de compasso não é inferida nesta versão.
+
+## Timeline e edição
+
+Palavras e acordes mantêm timestamps independentes, com o áudio original como relógio comum. A interface mostra uma prévia de cifra associada à palavra que contém ou sucede o onset do acorde, mas mantém o timestamp harmônico original. O usuário pode editar texto, início/fim das palavras e início/fim dos acordes. As revisões podem ser salvas no backend.
 
 ## Ambiente de desenvolvimento
 
-Execute `docker compose up --build`. API em `http://localhost:8000`; documentação OpenAPI em `/docs`; verificação em `/health`.
+Execute `docker compose up --build`. API em `http://localhost:8000`; OpenAPI em `/docs`; health check em `/health`. A primeira execução pode baixar vários gigabytes de dependências e pesos. O Compose está configurado para CPU e baixa concorrência; produção requer worker GPU e armazenamento adequado.
 
-## Limitações atuais
+## Limitações e requisitos para produção
 
-A persistência e a fila foram estruturadas, mas o worker ainda não executa inferência musical. SQLite é apenas configuração de desenvolvimento; produção deverá usar banco gerenciado e armazenamento de objetos com autenticação e política de retenção.
+- A precisão real ainda precisa ser medida em músicas de referência anotadas e autorizadas.
+- A análise de acordes é baseline por templates, não modelo ACR neural de produção.
+- Não há separação individual de todos os instrumentos além dos stems oferecidos pelo modelo.
+- SQLite e volume local são apenas para desenvolvimento.
+- Não há autenticação, cotas, expiração automática, antivírus ou isolamento multiusuário.
+- Não exponha o backend publicamente até implementar segurança, banco gerenciado, storage privado, logs/monitoramento e políticas de retenção.
