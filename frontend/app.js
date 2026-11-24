@@ -162,6 +162,12 @@
     const container = $("#lyric-chord-view"); container.replaceChildren();
     const words = result.transcription?.words || [];
     const chords = result.chords || [];
+    if (result.transcription?.edited_text) {
+      const text = document.createElement("span"); text.className = "unmapped-lyrics";
+      text.textContent = result.transcription.edited_text;
+      const note = document.createElement("small"); note.textContent = "Texto reescrito sem alinhamento token a token; timestamps anteriores foram preservados.";
+      container.append(text, note); return;
+    }
     if (!words.length) {
       const empty = document.createElement("span"); empty.className = "empty-cell";
       empty.textContent = "Sem palavras com timestamp para posicionar as cifras.";
