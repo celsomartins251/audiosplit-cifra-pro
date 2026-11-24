@@ -1,5 +1,6 @@
 import json
 import mimetypes
+import math
 import os
 from datetime import datetime, timezone
 from enum import Enum
@@ -181,7 +182,7 @@ async def update_job_result(job_id: str, payload: dict = Body(...)):
             start, end = float(event["start"]), float(event["end"])
         except (KeyError, TypeError, ValueError):
             raise HTTPException(status_code=422, detail="Evento sem timestamps válidos.")
-        if start < 0 or end <= start or not str(event.get("label", "")).strip():
+        if not math.isfinite(start) or not math.isfinite(end) or start < 0 or end <= start or not str(event.get("label", "")).strip():
             raise HTTPException(status_code=422, detail="Evento com intervalo ou rótulo inválido.")
     with SessionLocal() as db:
         job = db.get(AnalysisJob, job_id)
