@@ -168,7 +168,7 @@
       const title = document.createElement("strong"); title.textContent = name.toUpperCase();
       const audio = document.createElement("audio"); audio.controls = true; audio.preload = "none";
       audio.src = base + stem.download_path;
-      const download = document.createElement("a"); download.className = "secondary-button"; download.href = base + stem.download_path; download.download = name + ".wav"; download.textContent = "Baixar WAV"; wrapper.append(title, audio, download); $("#stem-players").append(wrapper);
+      const download = document.createElement("button"); download.type = "button"; download.className = "secondary-button"; download.textContent = "Baixar WAV"; download.addEventListener("click", async () => { download.disabled = true; try { const response = await fetch(base + stem.download_path); if (!response.ok) throw new Error("Falha ao baixar " + name + "."); const url = URL.createObjectURL(await response.blob()); const anchor = document.createElement("a"); anchor.href = url; anchor.download = name + ".wav"; document.body.append(anchor); anchor.click(); anchor.remove(); setTimeout(() => URL.revokeObjectURL(url), 30000); } catch (error) { setStatus(error.message, true); } finally { download.disabled = false; } }); wrapper.append(title, audio, download); $("#stem-players").append(wrapper);
     });
     const words = result.transcription?.words || [];
     $("#lyrics-editor").value = result.transcription?.edited_text || words.map(item => item.label).join(" ");
