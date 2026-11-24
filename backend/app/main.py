@@ -86,7 +86,13 @@ async def health():
 
 @app.post("/v1/jobs", response_model=JobAccepted, status_code=202)
 async def create_analysis_job(audio: UploadFile = File(...)):
-    original_name = Path(audio.filename or "audio").name
+    # Normalize client-supplied names before storing them or returning them in headers.
+    raw_name = (audio.filename or "audio").replace("\\", "/")
+    original_name = Path(raw_name).name
+    original_name = "".join(
+        character for character in original_name
+        if ord(character) >= 32 and ord(character) != 127
+    ).strip()[:180] or "audio"
     suffix = Path(original_name).suffix.lower()
     if suffix not in ALLOWED_SUFFIXES:
         raise HTTPException(status_code=415, detail="Formato não suportado.")
