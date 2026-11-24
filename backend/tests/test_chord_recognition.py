@@ -37,3 +37,18 @@ def test_chord_events_never_overlap(tmp_path):
     for previous, current in zip(events, events[1:]):
         assert previous["end"] <= current["start"] + 0.001
     assert all(event["end"] > event["start"] for event in events)
+
+def test_control_progression_detects_three_distinct_chords(tmp_path):
+    sample_rate = 22050
+    sections = [
+        _tone_chord([261.63, 329.63, 392.00], 2.0, sample_rate),
+        _tone_chord([196.00, 246.94, 293.66, 392.00], 2.0, sample_rate),
+        _tone_chord([220.00, 261.63, 329.63], 2.0, sample_rate),
+    ]
+    audio_path = tmp_path / "c-g-am.wav"
+    sf.write(audio_path, np.concatenate(sections), sample_rate)
+
+    events = recognize_chords(str(audio_path))
+    labels = {event["label"] for event in events}
+
+    assert {"C", "G", "Am"}.issubset(labels)
