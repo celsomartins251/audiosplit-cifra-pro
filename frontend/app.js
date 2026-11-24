@@ -10,6 +10,7 @@
   const allowedExtensions = new Set(["mp3", "wav", "flac", "m4a", "ogg"]);
   const savedApi = localStorage.getItem("audiosplit-api-url") || "http://localhost:8000";
   apiInput.value = savedApi;
+  $("#job-id-input").value = localStorage.getItem("audiosplit-last-job") || "";
 
   function apiBase() {
     const value = apiInput.value.trim().replace(/\/+$/, "");
@@ -63,12 +64,49 @@
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.detail || "Falha ao enviar o áudio (" + response.status + ").");
       activeJobId = payload.job_id;
+      $("#job-id-input").value = activeJobId;
+      localStorage.setItem("audiosplit-last-job", activeJobId);
       setStatus("Áudio recebido. Processamento iniciado.");
       await pollJob(base, activeJobId);
     } catch (error) {
       setStatus(error.message || "Não foi possível conectar à API.", true);
       $("#job-message").textContent = "Falha no envio ou na conexão.";
       polling = false; startButton.disabled = false;
+    }
+  }
+  async function loadProject() {
+    const jobId = $("#job-id-input").value.trim();
+    if (!jobId) { setStatus("Informe o identificador do projeto.", true); return; }
+    let base;
+    try { base = apiBase(); } catch (error) { setStatus(error.message, true); return; }
+    setStatus("Abrindo projeto salvo…");
+    try {
+      const response = await fetch(base + "/v1/jobs/" + encodeURIComponent(jobId));
+      const job = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(job.detail || "Projeto não encontrado.");
+      activeJobId = jobId; localStorage.setItem("audiosplit-last-job", jobId);
+      const player = $("#source-player");
+      if (player.dataset.objectUrl) URL.revokeObjectURL(player.dataset.objectUrl);
+      player.removeAttribute("src");
+      player.src = base + "/v1/jobs/" + encodeURIComponent(jobId) + "/source";
+      player.hidden = false;
+      if (job.status === "completed") {
+        const resultResponse = await fetch(base + "/v1/jobs/" + encodeURIComponent(jobId) + "/result");
+        const result = await resultResponse.json();
+        if (!resultResponse.ok) throw new Error(result.detail || "Resultado indisponível.");
+        project = result; renderProject(base, result);
+        if (!$("#source-player").src) $("#source-player").src = base + "/v1/jobs/" + encodeURIComponent(jobId) + "/source";
+        setProgress(100, "Projeto carregado.");
+        setStatus("Projeto reaberto. Você pode continuar a revisão.");
+      } else if (job.status === "queued" || job.status === "processing") {
+        polling = true; startButton.disabled = true;
+        await pollJob(base, jobId);
+      } else {
+        throw new Error(job.error_message || job.message || "Este processamento terminou com falha.");
+      }
+    } catch (error) {
+      polling = false; startButton.disabled = false;
+      setStatus(error.message || "Não foi possível abrir o projeto.", true);
     }
   }
   async function pollJob(base, jobId) {
@@ -258,6 +296,7 @@
   ["dragleave", "drop"].forEach(name => dropzone.addEventListener(name, event => { event.preventDefault(); dropzone.classList.remove("dragging"); }));
   dropzone.addEventListener("drop", event => acceptFile(event.dataTransfer.files[0]));
   startButton.addEventListener("click", startAnalysis);
+  $("#load-project").addEventListener("click", loadProject);
   $("#save-api").addEventListener("click", () => {
     try { const value = apiBase(); localStorage.setItem("audiosplit-api-url", value); setStatus("Endereço da API salvo."); }
     catch (error) { setStatus(error.message, true); }
