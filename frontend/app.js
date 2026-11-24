@@ -110,8 +110,10 @@
     const words = result.transcription?.words || [];
     $("#lyrics-editor").value = words.map(item => item.label).join(" ");
     $("#lyric-meta").textContent = words.length + " tokens reconhecidos · " + (result.transcription?.language || "idioma não identificado") + ". Os tempos por palavra permanecem no JSON.";
-    renderChordRows(result.chords || []);\n    renderTimeline(result);
-    const bpm = result.rhythm?.tempo_bpm;\n    $("#timeline-status").textContent = words.length + " palavras · " + (result.chords || []).length + " eventos" + (bpm ? " · " + bpm + " BPM" : "");
+    renderChordRows(result.chords || []);
+    renderTimeline(result);
+    const bpm = result.rhythm?.tempo_bpm;
+    $("#timeline-status").textContent = words.length + " palavras · " + (result.chords || []).length + " eventos" + (bpm ? " · " + bpm + " BPM" : "");
     $("#export-status").textContent = "Projeto pronto para revisão";
     $("#save-edits").disabled = false; $("#export-json").disabled = false; $("#export-text").disabled = false;
     $("#edit-status").textContent = result.chord_note || "Revise os eventos antes de exportar.";
@@ -214,7 +216,9 @@
     });
     project.chords.sort((a, b) => a.start - b.start);
     $("#edit-status").textContent = "Revisões aplicadas nesta sessão. Exporte o projeto para salvá-las.";
-    renderChordRows(project.chords);\n    renderLyricChordView(project);\n    renderTimeline(project);
+    renderChordRows(project.chords);
+    renderLyricChordView(project);
+    renderTimeline(project);
   }
   function downloadFile(filename, content, mime) {
     const blob = new Blob([content], { type: mime });
