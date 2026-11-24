@@ -238,8 +238,7 @@
         const input = document.createElement("input"); input.type = "number"; input.min = "0"; input.step = "0.01";
         input.value = value; input.dataset.index = index; input.dataset.field = field; cell.append(input);
       }
-      const label = document.createElement("input"); label.type = "text"; label.value = word.label; label.maxLength = 100;
-      label.dataset.index = index; label.dataset.field = "label"; labelCell.append(label);
+      labelCell.textContent = word.label;
       row.append(startCell, endCell, labelCell); body.append(row);
     });
   }
