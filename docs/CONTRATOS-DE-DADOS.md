@@ -1,43 +1,56 @@
 # Contratos de dados — timeline musical
 
-## Objetivo
+## Referência temporal
 
-Letra e acordes são eventos temporais independentes. A interface não deve presumir que uma mudança de acorde ocorre no primeiro tempo do compasso ou no início de uma palavra.
+O áudio original é o relógio único do projeto. Todos os eventos usam segundos desde o início do arquivo original, mesmo quando o modelo analisa um stem separado.
 
 ## Evento de letra
 
 Cada token contém:
-- `start`: início em segundos, relativo ao áudio original.
-- `end`: fim em segundos, relativo ao áudio original.
-- `label`: palavra reconhecida; futuramente poderá ser subdividida em sílabas.
-- `confidence`: confiança do modelo, quando disponível.
+- `start`: início estimado em segundos.
+- `end`: fim estimado em segundos.
+- `label`: palavra reconhecida.
+- `confidence`: score do ASR/alinhador, quando disponível.
 - `source`: modelo/etapa que produziu o evento.
+
+Quando WhisperX está disponível, o resultado também pode conter alinhamentos de caracteres. Caracteres não equivalem automaticamente a sílabas ou fonemas musicais. `edited_text` representa uma reescrita manual que não pôde ser mapeada token a token; nesse caso, os timestamps originais permanecem preservados.
 
 ## Evento harmônico
 
 Cada acorde contém:
-- `start` e `end`: intervalo temporal estimado do acorde.
-- `label`: símbolo completo, incluindo qualidade, extensões, alterações e baixo/inversão quando reconhecidos.
-- `confidence`: confiança do reconhecimento.
+- `start` e `end`: intervalo temporal estimado.
+- `label`: símbolo estimado.
+- `confidence`: score específico da etapa.
 - `source`: modelo ou processo responsável.
+- `alternatives`: candidatos de outra fonte, quando mix e stem harmônico discordam.
 
-## Sincronização
+No reconhecedor atual, `confidence` é um índice de similaridade de template, não uma probabilidade calibrada. Os eventos são intervalos não sobrepostos; gaps representam trechos em que o algoritmo não encontrou uma estimativa suficientemente confiável.
 
-1. Manter o relógio de áudio como referência única.
-2. Não deslocar timestamps de letra para fazê-los coincidir artificialmente com acordes.
-3. Exibir o acorde a partir do onset harmônico estimado.
-4. Permitir revisão manual do onset e do símbolo do acorde.
-5. Preservar o timestamp original do modelo e o timestamp corrigido pelo usuário como valores distintos.
-6. Representar incerteza; não inventar precisão em nível de sílaba quando o alinhador só oferece precisão por palavra.
+## Metadados
+
+O projeto pode incluir:
+- nome original, duração, sample rate, canais e hash SHA-256 do áudio;
+- nome e versão dos pacotes/modelos;
+- fonte de cada evento e observações sobre licenciamento;
+- BPM e tempos estimados dos pulsos.
+
+## Sincronização e edição
+
+1. Manter timestamps de letra e harmonia independentes.
+2. Não quantizar mudanças harmônicas automaticamente ao primeiro tempo do compasso.
+3. A prévia visual associa a cifra à palavra que contém ou sucede o onset, mas o onset original permanece disponível.
+4. O usuário pode corrigir início/fim das palavras e acordes.
+5. A exportação ChordPro associa cifras à palavra temporalmente mais próxima; o JSON preserva os timestamps exatos, inclusive quando a mudança ocorre dentro de uma palavra.
+6. Não declarar precisão silábica quando só há timestamps de palavra/caractere.
 
 ## Avaliação
 
 - Separação: SI-SDR/SDR e avaliação auditiva por stem.
-- Letra: WER/CER, com avaliação específica para canto em português brasileiro.
-- Alinhamento: erro absoluto de início/fim e proporção dentro de tolerâncias temporais.
-- Acordes: precisão/recall de símbolos e F-score de fronteiras harmônicas.
+- Letra: WER/CER em canto brasileiro.
+- Alinhamento: erro absoluto de início/fim por palavra.
+- Acordes: precisão/recall de símbolos e F-score de fronteiras.
 - Sincronização: erro temporal entre mudança harmônica anotada e evento exibido.
 
 ## Estado
 
-Este documento define o contrato pretendido. Os modelos e serviços de inferência ainda não foram integrados.
+A API, a fila, a separação base, a transcrição, o alinhamento opcional, o reconhecimento harmônico baseline, o ritmo e o editor estão implementados no código. A qualidade de produção ainda depende de execução em servidor, validação em gravações reais e substituição/regularização de pesos com licenças adequadas.
