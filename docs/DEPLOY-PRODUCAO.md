@@ -75,3 +75,12 @@ Executar API e worker como usuário sem privilégios. Fixar versões de imagens 
 - [ ] Licenças dos pesos e custos de infraestrutura aprovados.
 
 Até todos os bloqueios de segurança e os testes de ponta a ponta estarem concluídos, o link da interface deve ser tratado como prévia visual, não como serviço pronto para enviar áudios.
+
+
+## Correção de segurança aplicada
+
+A API agora não habilita CORS por padrão. A variável `CORS_ORIGINS` deve listar explicitamente a origem HTTPS do frontend; valores vazios ou curinga (`*`) não são aceitos como origens permitidas. Isso reduz exposição acidental por navegador, mas **não substitui autenticação**.
+
+## Bloqueio de segurança ainda aberto
+
+Os endpoints de jobs ainda não vinculam cada projeto a uma conta autenticada. Portanto, não publique a API nem permita uploads de terceiros até implementar autenticação e autorização por proprietário em todas as rotas de consulta, edição e download. O identificador UUID não é controle de acesso.
