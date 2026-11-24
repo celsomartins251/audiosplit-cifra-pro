@@ -29,6 +29,31 @@ def _get_asr():
         _asr = WhisperModel(ASR_MODEL, device=device, compute_type=compute_type, download_root=str(MODEL_DIR / "whisper"))
     return _asr
 
+def _probe_audio(input_path: Path):
+    command = [
+        "ffprobe", "-v", "error", "-show_entries",
+        "format=duration:stream=sample_rate,channels",
+        "-of", "json", str(input_path),
+    ]
+    completed = subprocess.run(command, capture_output=True, text=True, timeout=30)
+    if completed.returncode != 0:
+        raise RuntimeError("Arquivo não pôde ser decodificado pelo FFmpeg.")
+    metadata = json.loads(completed.stdout or "{}")
+    duration = float(metadata.get("format", {}).get("duration") or 0)
+    if duration <= 0:
+        raise RuntimeError("Duração de áudio inválida.")
+    max_duration = int(os.getenv("MAX_AUDIO_DURATION_SECONDS", "3600"))
+    if duration > max_duration:
+        raise RuntimeError(f"Áudio excede o limite de {max_duration} segundos.")
+    streams = metadata.get("streams", [])
+    audio_stream = streams[0] if streams else {}
+    return {
+        "duration_seconds": round(duration, 3),
+        "sample_rate": int(audio_stream.get("sample_rate") or 0),
+        "channels": int(audio_stream.get("channels") or 0),
+        "container": input_path.suffix.lower().lstrip("."),
+    }
+
 def _run_demucs(input_path: Path, output_dir: Path):
     output_dir.mkdir(parents=True, exist_ok=True)
     command = [
@@ -178,6 +203,8 @@ def run_pipeline(job_id: str, source_path: str, progress_callback):
     job_dir = DATA_DIR / "jobs" / job_id
     job_dir.mkdir(parents=True, exist_ok=True)
     source = Path(source_path)
+    progress_callback(3, "Verificando integridade e metadados do áudio")
+    audio_metadata = _probe_audio(source)
     progress_callback(8, "Preparando áudio e iniciando separação")
     stems = _run_demucs(source, job_dir / "separated")
     progress_callback(55, "Separação concluída; transcrevendo voz")
@@ -200,6 +227,7 @@ def run_pipeline(job_id: str, source_path: str, progress_callback):
     result = {
         "schema_version": "1.1",
         "job_id": job_id,
+        "audio": audio_metadata,
         "separation": {
             "model": SEPARATION_MODEL,
             "stems": stem_result,
