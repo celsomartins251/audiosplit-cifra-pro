@@ -139,7 +139,6 @@
       project.transcription.edited_text = $("#lyrics-editor").value.trim();
       project.transcription.edit_note = "Texto editado sem correspondência token a token; timestamps originais preservados.";
     }
-    $("#chord-rows input").forEach; // no-op removed by browser parser
     document.querySelectorAll("#chord-rows input").forEach((field) => {
       const index = Number(field.dataset.index), key = field.dataset.field;
       if (project.chords[index]) project.chords[index][key] = key === "start" ? Number(field.value) : field.value.trim();
