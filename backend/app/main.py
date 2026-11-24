@@ -1,4 +1,5 @@
 import json
+import mimetypes
 import os
 from datetime import datetime, timezone
 from enum import Enum
@@ -205,7 +206,8 @@ async def download_source(job_id: str):
         source_path = Path(job.audio_path)
         if not source_path.is_file():
             raise HTTPException(status_code=404, detail="Áudio original não encontrado.")
-        return FileResponse(source_path, filename=Path(job.original_filename).name)
+        media_type = mimetypes.guess_type(source_path.name)[0] or "application/octet-stream"
+        return FileResponse(source_path, media_type=media_type, filename=Path(job.original_filename).name)
     
     
 @app.get("/v1/jobs/{job_id}/stems/{stem_name}")
