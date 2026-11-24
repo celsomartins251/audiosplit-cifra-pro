@@ -31,7 +31,7 @@ def _get_asr():
 
 def _probe_audio(input_path: Path):
     command = [
-        "ffprobe", "-v", "error", "-show_entries",
+        "ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries",
         "format=duration:stream=sample_rate,channels",
         "-of", "json", str(input_path),
     ]
