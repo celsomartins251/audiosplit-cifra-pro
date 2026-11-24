@@ -168,7 +168,10 @@ async def get_job_result(job_id: str):
 async def update_job_result(job_id: str, payload: dict = Body(...)):
     if payload.get("job_id") != job_id:
         raise HTTPException(status_code=400, detail="O identificador do projeto não corresponde ao job.")
-    words = payload.get("transcription", {}).get("words", [])
+    transcription = payload.get("transcription") or {}
+    if not isinstance(transcription, dict):
+        raise HTTPException(status_code=422, detail="Objeto de transcrição inválido.")
+    words = transcription.get("words", [])
     chords = payload.get("chords", [])
     if not isinstance(words, list) or not isinstance(chords, list):
         raise HTTPException(status_code=422, detail="Lista de eventos inválida.")
