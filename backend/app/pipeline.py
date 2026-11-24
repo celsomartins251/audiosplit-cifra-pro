@@ -1,6 +1,7 @@
 """Real first-pass audio pipeline: Demucs stems, ASR, optional forced alignment and chord estimates."""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from importlib.metadata import PackageNotFoundError, version
@@ -36,6 +37,13 @@ def _get_asr():
         compute_type = os.getenv("WHISPER_COMPUTE_TYPE", "int8")
         _asr = WhisperModel(ASR_MODEL, device=device, compute_type=compute_type, download_root=str(MODEL_DIR / "whisper"))
     return _asr
+
+def _sha256_file(path: Path):
+    digest = hashlib.sha256()
+    with path.open("rb") as audio_file:
+        for chunk in iter(lambda: audio_file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 def _probe_audio(input_path: Path):
     command = [
@@ -237,7 +245,7 @@ def run_pipeline(job_id: str, source_path: str, progress_callback, original_file
     result = {
         "schema_version": "1.1",
         "job_id": job_id,
-        "audio": {**audio_metadata, "source_filename": original_filename or source.name},
+        "audio": {**audio_metadata, "source_filename": original_filename or source.name, "sha256": _sha256_file(source)},
         "model_metadata": {
             "separation": {
                 "name": SEPARATION_MODEL,
