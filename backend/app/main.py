@@ -172,7 +172,8 @@ async def download_stem(job_id: str, stem_name: str):
         job = db.get(AnalysisJob, job_id)
         if job is None or job.status != JobStatus.completed.value:
             raise HTTPException(status_code=404, detail="Arquivo não encontrado.")
-        stem_path = Path("/data/jobs") / job_id / f"{stem_name}.wav"
+        data_dir = Path(os.getenv("DATA_DIR", "/data"))
+        stem_path = data_dir / "jobs" / job_id / f"{stem_name}.wav"
         if not stem_path.is_file():
             raise HTTPException(status_code=404, detail="Arquivo de áudio não encontrado.")
         return FileResponse(stem_path, media_type="audio/wav", filename=f"{stem_name}.wav")
