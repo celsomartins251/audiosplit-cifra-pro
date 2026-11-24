@@ -46,12 +46,14 @@ def _templates():
 
 TEMPLATES, LABELS = _templates()
 
-def recognize_chords(audio_path: str, window_seconds: float = 1.5, hop_seconds: float = 0.25):
+def recognize_chords(audio_path: str, window_seconds: float = 0.75, hop_seconds: float = 0.10):
     y, sr = librosa.load(audio_path, sr=22050, mono=True)
     if y.size < sr // 2:
         return []
     hop = 512
     chroma = librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=hop, n_chroma=12)
+    # A janela curta reduz o borramento temporal nas trocas de acorde; o hop menor
+    # melhora a resolução dos eventos sem tratar cada quadro como uma certeza.
     frames_per_window = max(2, int(window_seconds * sr / hop))
     frames_per_hop = max(1, int(hop_seconds * sr / hop))
     events = []
