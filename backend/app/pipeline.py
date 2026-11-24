@@ -200,7 +200,7 @@ def _corroborate_chords(primary: list, secondary: list):
         fused.append(event)
     return fused
 
-def run_pipeline(job_id: str, source_path: str, progress_callback):
+def run_pipeline(job_id: str, source_path: str, progress_callback, original_filename: str | None = None):
     job_dir = DATA_DIR / "jobs" / job_id
     job_dir.mkdir(parents=True, exist_ok=True)
     source = Path(source_path)
@@ -230,7 +230,7 @@ def run_pipeline(job_id: str, source_path: str, progress_callback):
     result = {
         "schema_version": "1.1",
         "job_id": job_id,
-        "audio": audio_metadata,
+        "audio": {**audio_metadata, "source_filename": original_filename or source.name},
         "separation": {
             "model": SEPARATION_MODEL,
             "stems": stem_result,
