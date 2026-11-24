@@ -59,7 +59,7 @@ Por padrão, o Compose usa `htdemucs_ft`, `small` do faster-whisper e alinhament
 
 ## Validação
 
-A suíte automatizada verifica sintaxe do frontend/backend e padrões sintéticos de acordes. A validação de separação e ASR com gravações musicais reais ainda depende de conjunto de referência e execução em servidor com os modelos baixados.
+A suíte automatizada verifica sintaxe do frontend/backend, padrões sintéticos de acordes, estimativa de BPM e métrica SI-SDR. A validação de separação e ASR com gravações musicais reais ainda depende de conjunto de referência e execução em servidor com os modelos baixados.
 
 Métricas previstas:
 - separação: SI-SDR/SDR e avaliação auditiva por stem;
