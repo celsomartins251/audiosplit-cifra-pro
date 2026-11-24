@@ -6,7 +6,9 @@ def analyze_rhythm(audio_path: str):
     y, sr = librosa.load(audio_path, sr=22050, mono=True)
     if y.size < sr:
         return {"tempo_bpm": None, "beats": [], "source": "librosa-beat-tracking"}
-    tempo, beat_times = librosa.beat.beat_track(y=y, sr=sr, units="time")
+    hop_length = 512
+    onset_envelope = librosa.onset.onset_strength(y=y, sr=sr, hop_length=hop_length)
+    tempo, beat_times = librosa.beat.beat_track(onset_envelope=onset_envelope, sr=sr, hop_length=hop_length, units="time")
     tempo_values = np.asarray(tempo).reshape(-1)
     bpm = float(tempo_values[0]) if tempo_values.size else None
     return {
