@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Optional
 from uuid import uuid4
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import Body, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
@@ -25,7 +25,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=False,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PUT"],
     allow_headers=["*"],
 )
 
@@ -162,6 +162,35 @@ async def get_job_result(job_id: str):
         if job.status != JobStatus.completed.value or not job.result_json:
             raise HTTPException(status_code=409, detail="Resultado ainda não está disponível.")
         return json.loads(job.result_json)
+
+
+@app.put("/v1/jobs/{job_id}/result")
+async def update_job_result(job_id: str, payload: dict = Body(...)):
+    if payload.get("job_id") != job_id:
+        raise HTTPException(status_code=400, detail="O identificador do projeto não corresponde ao job.")
+    words = payload.get("transcription", {}).get("words", [])
+    chords = payload.get("chords", [])
+    if not isinstance(words, list) or not isinstance(chords, list):
+        raise HTTPException(status_code=422, detail="Lista de eventos inválida.")
+    for event in words + chords:
+        try:
+            start, end = float(event["start"]), float(event["end"])
+        except (KeyError, TypeError, ValueError):
+            raise HTTPException(status_code=422, detail="Evento sem timestamps válidos.")
+        if start < 0 or end <= start or not str(event.get("label", "")).strip():
+            raise HTTPException(status_code=422, detail="Evento com intervalo ou rótulo inválido.")
+    with SessionLocal() as db:
+        job = db.get(AnalysisJob, job_id)
+        if job is None or job.status != JobStatus.completed.value:
+            raise HTTPException(status_code=404, detail="Projeto concluído não encontrado.")
+        job.result_json = json.dumps(payload, ensure_ascii=False)
+        job.updated_at = datetime.now(timezone.utc)
+        job.message = "Revisões manuais salvas."
+        db.commit()
+    result_path = Path(os.getenv("DATA_DIR", "/data")) / "jobs" / job_id / "result.json"
+    result_path.parent.mkdir(parents=True, exist_ok=True)
+    result_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    return {"saved": True, "job_id": job_id, "message": "Revisões salvas no projeto."}
 
 
 @app.get("/v1/jobs/{job_id}/stems/{stem_name}")
