@@ -11,6 +11,7 @@ from pathlib import Path
 from faster_whisper import WhisperModel
 
 from .chord_recognition import recognize_chords
+from .rhythm import analyze_rhythm
 
 DATA_DIR = Path(os.getenv("DATA_DIR", "/data"))
 MODEL_DIR = Path(os.getenv("MODEL_DIR", "/models"))
@@ -160,6 +161,7 @@ def run_pipeline(job_id: str, source_path: str, progress_callback):
     transcription = _transcribe(stems["vocals"])
     progress_callback(78, "Transcrição concluída; analisando harmonia")
     chords = recognize_chords(source_path)
+    rhythm = analyze_rhythm(source_path)
     progress_callback(94, "Organizando resultados e metadados")
     stem_result = {}
     for name, path in stems.items():
@@ -180,6 +182,7 @@ def run_pipeline(job_id: str, source_path: str, progress_callback):
         },
         "transcription": transcription,
         "chords": chords,
+        "rhythm": rhythm,
         "chord_note": "Acordes são estimativas baseline por chroma e templates; a similaridade não é probabilidade calibrada. Revise tensões, inversões e mudanças rápidas.",
     }
     (job_dir / "result.json").write_text(json.dumps(result, ensure_ascii=False), encoding="utf-8")
