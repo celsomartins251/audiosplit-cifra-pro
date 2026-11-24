@@ -248,7 +248,7 @@
     $("#chord-count").textContent = chords.length + (chords.length === 1 ? " acorde" : " acordes");
     if (!chords.length) {
       const row = document.createElement("tr"), cell = document.createElement("td");
-      cell.colSpan = 3; cell.className = "empty-cell"; cell.textContent = "Nenhum evento harmônico confiável foi identificado.";
+      cell.colSpan = 4; cell.className = "empty-cell"; cell.textContent = "Nenhum evento harmônico confiável foi identificado."
       row.append(cell); body.append(row); return;
     }
     chords.forEach((chord, index) => {
