@@ -166,7 +166,7 @@ async def get_job_result(job_id: str):
 
 @app.get("/v1/jobs/{job_id}/stems/{stem_name}")
 async def download_stem(job_id: str, stem_name: str):
-    if stem_name not in {"vocals", "drums", "bass", "other"}:
+    if stem_name not in {"vocals", "drums", "bass", "guitar", "piano", "other"}:
         raise HTTPException(status_code=404, detail="Stem não encontrado.")
     with SessionLocal() as db:
         job = db.get(AnalysisJob, job_id)
