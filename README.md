@@ -33,7 +33,7 @@ Abra a interface em `frontend/index.html` por um servidor estático (por exemplo
 8. Estimativa de BPM e pulsos.
 9. Resultado JSON, consulta de estado e download individual dos stems.
 
-O primeiro download dos pesos dos modelos pode ser grande e o processamento é pesado. O Compose atual é uma configuração de desenvolvimento em CPU; para produção, recomenda-se worker com GPU, fila/banco gerenciados e armazenamento de objetos.
+O primeiro download dos pesos dos modelos pode ser grande e o processamento é pesado. O Compose atual é uma configuração de desenvolvimento em CPU e ativa explicitamente `ALLOW_UNCLEARED_MODEL_WEIGHTS=true` apenas para testes privados com Demucs. A licença comercial desses pesos não está confirmada; não use essa configuração em produção. Consulte `docs/LICENCIAMENTO-MODELOS.md`. Para produção, será necessário um modelo com direitos verificados, worker com GPU, fila/banco gerenciados e armazenamento de objetos.
 
 ## Interface
 
@@ -42,7 +42,7 @@ A interface permite:
 - ouvir o áudio original e cada stem;
 - editar o texto reconhecido, os tempos por palavra e os símbolos/tempos dos acordes;
 - clicar em eventos temporais para posicionar a reprodução, reabrir projetos e salvar revisões no servidor;
-- exportar JSON com os timestamps e TXT com eventos em ordem cronológica.
+- exportar JSON com os timestamps, TXT com eventos em ordem cronológica e ChordPro com cifras associadas às palavras.
 
 ## Limitações que ainda exigem validação
 
