@@ -383,22 +383,19 @@
   }
 
 
-  function exportPdf() {
-    if (!project) return;
-    const words = project.transcription?.words || [], chords = project.chords || [], assigned = new Map();
-    chords.forEach(chord => {
-      const index = words.findIndex(word => Number(word.end) >= Number(chord.start));
-      if (index >= 0) { if (!assigned.has(index)) assigned.set(index, []); assigned.get(index).push(chord); }
-    });
-    const esc = value => String(value ?? "").replace(/[&<>"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
-    const title = esc((project.audio?.source_filename || selectedFile?.name || "Análise musical").replace(/\.[^.]+$/, ""));
-    const lyricRows = words.length ? words.map((word, index) => '<div class="token"><b>' + (assigned.get(index) || []).map(c => esc(c.label)).join(" · ") + '</b><span>' + esc(word.label) + '</span><small>' + formatTime(word.start) + '</small></div>').join("") : '<p>' + esc(project.transcription?.edited_text || "Sem transcrição disponível.") + '</p>';
-    const chordRows = chords.map(c => '<tr><td>' + Number(c.start).toFixed(2) + 's</td><td>' + Number(c.end).toFixed(2) + 's</td><td><b>' + esc(c.label) + '</b></td></tr>').join("");
-    const wordRows = words.map(w => '<tr><td>' + Number(w.start).toFixed(2) + 's</td><td>' + Number(w.end).toFixed(2) + 's</td><td>' + esc(w.label) + '</td></tr>').join("");
-    const win = window.open("", "_blank");
-    if (!win) { $("#edit-status").textContent = "Pop-up bloqueado. Permita pop-ups para este site e tente novamente."; return; }
-    win.document.write('<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>' + title + ' - AudioSplit</title><style>body{font:12px Arial,sans-serif;color:#171717;margin:20mm}h1{font-size:20px}h2{font-size:15px;margin-top:24px}.meta{color:#555}.lyrics{display:flex;flex-wrap:wrap;gap:12px 8px;margin:18px 0}.token{display:flex;flex-direction:column;min-width:48px;gap:3px}.token b{color:#946c12;min-height:14px}.token small{color:#777;font-size:9px}table{width:100%;border-collapse:collapse;margin-top:8px}td,th{border-bottom:1px solid #ccc;padding:6px;text-align:left}th{background:#eee}@media print{body{margin:15mm}}</style></head><body><h1>' + title + '</h1><p class="meta">AudioSplit & Cifra Pro · Projeto ' + esc(project.job_id) + '</p><h2>Letra com cifras posicionadas por evento temporal</h2><div class="lyrics">' + lyricRows + '</div><h2>Eventos harmônicos</h2><table><thead><tr><th>Início</th><th>Fim</th><th>Acorde</th></tr></thead><tbody>' + chordRows + '</tbody></table><h2>Alinhamento palavra por palavra</h2><table><thead><tr><th>Início</th><th>Fim</th><th>Palavra</th></tr></thead><tbody>' + wordRows + '</tbody></table><p class="meta">Tempos e acordes são estimativas automáticas e devem ser revisados auditivamente.</p><script>window.onload=()=>window.print();<\/script></body></html>');
-    win.document.close();
+  async function exportPdf() {
+    if (!project?.job_id) return;
+    let base; try { base = apiBase(); } catch (error) { setStatus(error.message, true); return; }
+    const button = $("#export-pdf"); button.disabled = true; button.textContent = "Gerando PDF…";
+    try {
+      const response = await fetch(base + "/v1/jobs/" + encodeURIComponent(project.job_id) + "/export.pdf");
+      if (!response.ok) { const payload = await response.json().catch(() => ({})); throw new Error(payload.detail || "Não foi possível gerar o PDF."); }
+      const url = URL.createObjectURL(await response.blob()), anchor = document.createElement("a");
+      anchor.href = url; anchor.download = "audiosplit-cifras-" + project.job_id + ".pdf";
+      document.body.append(anchor); anchor.click(); anchor.remove(); setTimeout(() => URL.revokeObjectURL(url), 30000);
+      setStatus("PDF gerado e enviado para download.");
+    } catch (error) { setStatus(error.message, true); }
+    finally { button.disabled = false; button.textContent = "Exportar PDF da letra e cifras"; }
   }
   async function exportStemsZip() {
     if (!project?.job_id) return;
