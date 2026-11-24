@@ -146,7 +146,7 @@
       wrapper.append(title, audio); $("#stem-players").append(wrapper);
     });
     const words = result.transcription?.words || [];
-    $("#lyrics-editor").value = words.map(item => item.label).join(" ");
+    $("#lyrics-editor").value = result.transcription?.edited_text || words.map(item => item.label).join(" ");
     $("#lyric-meta").textContent = words.length + " tokens reconhecidos · " + (result.transcription?.language || "idioma não identificado") + " · " + (result.transcription?.alignment_method || "timestamp ASR") + ". " + (result.transcription?.alignment_note || "Tempos estimados; revise o canto.");
     renderWordRows(words);
     renderChordRows(result.chords || []);
@@ -155,7 +155,7 @@
     const bpm = result.rhythm?.tempo_bpm;
     $("#timeline-status").textContent = words.length + " palavras · " + (result.chords || []).length + " eventos" + (bpm ? " · " + bpm + " BPM" : "");
     $("#export-status").textContent = "Projeto pronto para revisão";
-    $("#save-edits").disabled = false; $("#export-json").disabled = false; $("#export-text").disabled = false;
+    $("#save-edits").disabled = false; $("#export-json").disabled = false; $("#export-text").disabled = false; $("#export-chordpro").disabled = false;
     $("#edit-status").textContent = result.chord_note || "Revise os eventos antes de exportar.";
   }
   function renderLyricChordView(result) {
@@ -311,6 +311,34 @@
     if (!project) return;
     downloadFile("audiosplit-cifra-pro-" + project.job_id + ".json", JSON.stringify(project, null, 2), "application/json");
   }
+  function exportChordPro() {
+    if (!project) return;
+    const words = project.transcription?.words || [];
+    const editedText = project.transcription?.edited_text;
+    if (!words.length) {
+      $("#edit-status").textContent = "Não há palavras com timestamp para gerar ChordPro.";
+      return;
+    }
+    if (editedText && editedText.trim().split(/\s+/).length !== words.length) {
+      $("#edit-status").textContent = "A letra foi reescrita com outra quantidade de palavras. Ajuste o alinhamento palavra a palavra antes de exportar ChordPro.";
+      return;
+    }
+    const assigned = new Map();
+    (project.chords || []).forEach(chord => {
+      const index = words.findIndex(word => Number(word.end) >= Number(chord.start));
+      if (index >= 0) {
+        if (!assigned.has(index)) assigned.set(index, []);
+        assigned.get(index).push(chord);
+      }
+    });
+    const lyrics = words.map((word, index) => {
+      const markers = (assigned.get(index) || []).map(chord => "[" + chord.label + "]").join("");
+      return markers + word.label;
+    }).join(" ");
+    const title = (selectedFile?.name || "AudioSplit project").replace(/\.[^.]+$/, "");
+    const content = "{title: " + title + "}\n{comment: ChordPro gerado pelo AudioSplit & Cifra Pro; cifras associadas à palavra temporalmente mais próxima. Consulte o JSON para timestamps exatos.}\n\n" + lyrics + "\n";
+    downloadFile("audiosplit-" + project.job_id + ".pro", content, "text/plain;charset=utf-8");
+  }
   function exportText() {
     if (!project) return;
     const events = [
@@ -334,6 +362,7 @@
   $("#save-edits").addEventListener("click", applyEdits);
   $("#export-json").addEventListener("click", exportJson);
   $("#export-text").addEventListener("click", exportText);
+  $("#export-chordpro").addEventListener("click", exportChordPro);
   menuButton.addEventListener("click", () => sidebar.classList.toggle("open"));
   document.querySelectorAll(".nav-item").forEach(link => link.addEventListener("click", () => sidebar.classList.remove("open")));
 })();
