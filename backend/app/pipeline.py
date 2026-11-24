@@ -45,12 +45,13 @@ def _run_demucs(input_path: Path, output_dir: Path):
     if not stem_dir.is_dir():
         raise RuntimeError("O Demucs terminou sem produzir a pasta de stems esperada.")
     stems = {}
-    for name in ("vocals", "drums", "bass", "other"):
+    expected_stems = ("vocals", "drums", "bass", "guitar", "piano", "other") if SEPARATION_MODEL.endswith("_6s") else ("vocals", "drums", "bass", "other")
+    for name in expected_stems:
         path = stem_dir / f"{name}.wav"
         if path.exists():
             stems[name] = str(path)
-    if len(stems) != 4:
-        raise RuntimeError("Separação incompleta: não foram encontrados os quatro stems esperados.")
+    if len(stems) != len(expected_stems):
+        raise RuntimeError(f"Separação incompleta: esperados {len(expected_stems)} stems, encontrados {len(stems)}.")
     return stems
 
 def _forced_align(vocal_path: str, segments: list, language: str):
