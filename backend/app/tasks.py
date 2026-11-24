@@ -1,7 +1,10 @@
 from datetime import datetime, timezone
 from .celery_app import celery_app
-from .database import SessionLocal
+from .database import Base, SessionLocal, apply_sqlite_compat_migrations, engine
 from .models import AnalysisJob
+
+Base.metadata.create_all(bind=engine)
+apply_sqlite_compat_migrations()
 from .pipeline import run_pipeline
 
 @celery_app.task(name="app.tasks.process_analysis", bind=True, max_retries=0)
