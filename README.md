@@ -17,9 +17,9 @@ Requer Docker e Docker Compose:
 docker compose up --build
 ```
 
-A API estará em `http://localhost:8000`; documentação em `http://localhost:8000/docs`; health check em `/health`.
+A API estará disponível somente no próprio computador em `http://localhost:8000`; documentação em `http://localhost:8000/docs`; health check em `/health`. O Compose limita a porta a `127.0.0.1` e o CORS às origens locais `localhost:8080` e `127.0.0.1:8080`. Essa configuração é exclusivamente para desenvolvimento local.
 
-Abra a interface em `frontend/index.html` por um servidor estático (por exemplo, `python -m http.server 8080 -d frontend`) ou habilite GitHub Pages na raiz do repositório. O arquivo `index.html` da raiz redireciona para `frontend/`. No campo “Endereço da API”, informe o endereço do backend acessível pelo navegador. `localhost` só funciona quando o navegador e o Docker estão na mesma máquina. O backend ainda precisa ser hospedado em um servidor separado para acesso externo.
+Abra a interface em `frontend/index.html` por um servidor estático (por exemplo, `python -m http.server 8080 -d frontend`) ou habilite GitHub Pages na raiz do repositório. O arquivo `index.html` da raiz redireciona para `frontend/`. No campo “Endereço da API”, informe o endereço do backend acessível pelo navegador. `localhost` só funciona quando o navegador e o Docker estão na mesma máquina. O backend ainda precisa ser hospedado em um servidor separado para acesso externo. Não remova o vínculo local nem amplie o CORS como atalho: uma implantação pública exige autenticação/autorização por projeto, limites de uso, TLS, armazenamento privado e política de retenção.
 
 ## Pipeline implementado
 
