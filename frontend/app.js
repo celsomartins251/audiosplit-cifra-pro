@@ -168,7 +168,7 @@
       const title = document.createElement("strong"); title.textContent = name.toUpperCase();
       const audio = document.createElement("audio"); audio.controls = true; audio.preload = "none";
       audio.src = base + stem.download_path;
-      wrapper.append(title, audio); $("#stem-players").append(wrapper);
+      const download = document.createElement("a"); download.className = "secondary-button"; download.href = base + stem.download_path; download.download = name + ".wav"; download.textContent = "Baixar WAV"; wrapper.append(title, audio, download); $("#stem-players").append(wrapper);
     });
     const words = result.transcription?.words || [];
     $("#lyrics-editor").value = result.transcription?.edited_text || words.map(item => item.label).join(" ");
@@ -180,7 +180,7 @@
     const bpm = result.rhythm?.tempo_bpm;
     $("#timeline-status").textContent = words.length + " palavras · " + (result.chords || []).length + " eventos" + (bpm ? " · " + bpm + " BPM" : "");
     $("#export-status").textContent = "Projeto pronto para revisão";
-    $("#save-edits").disabled = false; $("#export-json").disabled = false; $("#export-text").disabled = false; $("#export-chordpro").disabled = false;
+    $("#save-edits").disabled = false; $("#export-json").disabled = false; $("#export-text").disabled = false; $("#export-chordpro").disabled = false; $("#export-pdf").disabled = false; $("#export-stems").disabled = false;
     $("#edit-status").textContent = result.chord_note || "Revise os eventos antes de exportar.";
   }
   function renderLyricChordView(result) {
@@ -382,6 +382,39 @@
     downloadFile("audiosplit-eventos-" + project.job_id + ".txt", lines.join("\n"), "text/plain;charset=utf-8");
   }
 
+
+  function exportPdf() {
+    if (!project) return;
+    const words = project.transcription?.words || [], chords = project.chords || [], assigned = new Map();
+    chords.forEach(chord => {
+      const index = words.findIndex(word => Number(word.end) >= Number(chord.start));
+      if (index >= 0) { if (!assigned.has(index)) assigned.set(index, []); assigned.get(index).push(chord); }
+    });
+    const esc = value => String(value ?? "").replace(/[&<>"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
+    const title = esc((project.audio?.source_filename || selectedFile?.name || "Análise musical").replace(/\.[^.]+$/, ""));
+    const lyricRows = words.length ? words.map((word, index) => '<div class="token"><b>' + (assigned.get(index) || []).map(c => esc(c.label)).join(" · ") + '</b><span>' + esc(word.label) + '</span><small>' + formatTime(word.start) + '</small></div>').join("") : '<p>' + esc(project.transcription?.edited_text || "Sem transcrição disponível.") + '</p>';
+    const chordRows = chords.map(c => '<tr><td>' + Number(c.start).toFixed(2) + 's</td><td>' + Number(c.end).toFixed(2) + 's</td><td><b>' + esc(c.label) + '</b></td></tr>').join("");
+    const wordRows = words.map(w => '<tr><td>' + Number(w.start).toFixed(2) + 's</td><td>' + Number(w.end).toFixed(2) + 's</td><td>' + esc(w.label) + '</td></tr>').join("");
+    const win = window.open("", "_blank");
+    if (!win) { $("#edit-status").textContent = "Pop-up bloqueado. Permita pop-ups para este site e tente novamente."; return; }
+    win.document.write('<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>' + title + ' - AudioSplit</title><style>body{font:12px Arial,sans-serif;color:#171717;margin:20mm}h1{font-size:20px}h2{font-size:15px;margin-top:24px}.meta{color:#555}.lyrics{display:flex;flex-wrap:wrap;gap:12px 8px;margin:18px 0}.token{display:flex;flex-direction:column;min-width:48px;gap:3px}.token b{color:#946c12;min-height:14px}.token small{color:#777;font-size:9px}table{width:100%;border-collapse:collapse;margin-top:8px}td,th{border-bottom:1px solid #ccc;padding:6px;text-align:left}th{background:#eee}@media print{body{margin:15mm}}</style></head><body><h1>' + title + '</h1><p class="meta">AudioSplit & Cifra Pro · Projeto ' + esc(project.job_id) + '</p><h2>Letra com cifras posicionadas por evento temporal</h2><div class="lyrics">' + lyricRows + '</div><h2>Eventos harmônicos</h2><table><thead><tr><th>Início</th><th>Fim</th><th>Acorde</th></tr></thead><tbody>' + chordRows + '</tbody></table><h2>Alinhamento palavra por palavra</h2><table><thead><tr><th>Início</th><th>Fim</th><th>Palavra</th></tr></thead><tbody>' + wordRows + '</tbody></table><p class="meta">Tempos e acordes são estimativas automáticas e devem ser revisados auditivamente.</p><script>window.onload=()=>window.print();<\/script></body></html>');
+    win.document.close();
+  }
+  async function exportStemsZip() {
+    if (!project?.job_id) return;
+    let base; try { base = apiBase(); } catch (error) { setStatus(error.message, true); return; }
+    const button = $("#export-stems"); button.disabled = true; button.textContent = "Preparando ZIP…";
+    try {
+      const response = await fetch(base + "/v1/jobs/" + encodeURIComponent(project.job_id) + "/stems.zip");
+      if (!response.ok) { const payload = await response.json().catch(() => ({})); throw new Error(payload.detail || "Não foi possível preparar o ZIP."); }
+      const url = URL.createObjectURL(await response.blob()), anchor = document.createElement("a");
+      anchor.href = url; anchor.download = "audiosplit-stems-" + project.job_id + ".zip";
+      document.body.append(anchor); anchor.click(); anchor.remove(); setTimeout(() => URL.revokeObjectURL(url), 30000);
+      setStatus("Pacote ZIP das faixas gerado.");
+    } catch (error) { setStatus(error.message, true); }
+    finally { button.disabled = false; button.textContent = "Baixar faixas separadas (ZIP)"; }
+  }
+
   input.addEventListener("change", () => acceptFile(input.files[0]));
   ["dragenter", "dragover"].forEach(name => dropzone.addEventListener(name, event => { event.preventDefault(); dropzone.classList.add("dragging"); }));
   ["dragleave", "drop"].forEach(name => dropzone.addEventListener(name, event => { event.preventDefault(); dropzone.classList.remove("dragging"); }));
@@ -396,6 +429,8 @@
   $("#export-json").addEventListener("click", exportJson);
   $("#export-text").addEventListener("click", exportText);
   $("#export-chordpro").addEventListener("click", exportChordPro);
+  $("#export-pdf").addEventListener("click", exportPdf);
+  $("#export-stems").addEventListener("click", exportStemsZip);
   menuButton.addEventListener("click", () => sidebar.classList.toggle("open"));
   document.querySelectorAll(".nav-item").forEach(link => link.addEventListener("click", () => sidebar.classList.remove("open")));
 })();
