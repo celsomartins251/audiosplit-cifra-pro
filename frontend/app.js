@@ -17,18 +17,30 @@
 
   function apiBase() {
     const value = apiInput.value.trim().replace(/\/+$/, "");
-    if (!/^https?:\/\//i.test(value)) {
+    let parsed;
+    try {
+      parsed = new URL(value);
+    } catch {
       throw new Error(hostedFrontend
-        ? "Informe o endereço HTTPS do servidor. O site público não executa os modelos de áudio sozinho."
+        ? "Informe um endereço HTTPS válido para o servidor da API."
         : "Informe um endereço HTTP ou HTTPS válido para a API.");
     }
-    if (hostedFrontend && !value.startsWith("https://")) {
+    if (!["http:", "https:"].includes(parsed.protocol) || !parsed.hostname) {
+      throw new Error("A API precisa usar um endereço HTTP ou HTTPS válido.");
+    }
+    if (parsed.username || parsed.password || parsed.search || parsed.hash) {
+      throw new Error("Informe somente o endereço-base da API, sem credenciais, parâmetros ou fragmentos.");
+    }
+    if (hostedFrontend && parsed.protocol !== "https:") {
       throw new Error("O servidor precisa usar HTTPS para funcionar com o site público.");
     }
-    if (hostedFrontend && /localhost|127\.0\.0\.1/i.test(value)) {
+    const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+    const loopback = host === "localhost" || host.endsWith(".localhost") ||
+      host === "127.0.0.1" || host === "::1";
+    if (hostedFrontend && loopback) {
       throw new Error("No site público, localhost aponta para o próprio aparelho. Informe o endereço público do servidor.");
     }
-    return value;
+    return parsed.origin + parsed.pathname.replace(/\/+$/, "");
   }
   function setStatus(message, isError = false) {
     status.textContent = message;
