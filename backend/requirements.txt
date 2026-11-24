@@ -8,4 +8,3 @@ demucs>=4.0.1,<5.0
 faster-whisper>=1.1.0,<2.0
 librosa>=0.10.2,<1.0
 soundfile>=0.12.1
-pytest>=8.0,<9.0
