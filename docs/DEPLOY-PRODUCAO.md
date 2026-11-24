@@ -6,6 +6,16 @@ O repositório contém uma interface estática e uma API/worker preparados para 
 
 **Não existe, neste repositório, uma API pública de produção provisionada.** Não configure o endereço do GitHub Pages como endereço da API. O processamento real depende dos serviços descritos abaixo.
 
+## Ativação do GitHub Pages
+
+A automação tentou criar o site Pages, mas o token do GitHub Actions recebeu `Resource not accessible by integration` ao chamar a API de criação do site. Essa configuração administrativa precisa ser ativada pelo proprietário do repositório:
+
+1. Abra **Settings → Pages** no repositório.
+2. Em **Build and deployment → Source**, selecione **GitHub Actions**.
+3. Salve a configuração. O workflow fará o upload de `frontend/` e publicará a interface no próximo push ou execução manual.
+
+A permissão `pages: write` do workflow não substitui a ativação inicial do recurso quando a integração não tem permissão para criar o site.
+
 ## Arquitetura necessária
 
 - **Frontend:** GitHub Pages ou hospedagem estática HTTPS.
