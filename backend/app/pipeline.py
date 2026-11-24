@@ -152,6 +152,28 @@ def _transcribe(vocal_path: str):
         "alignment_note": alignment_note,
     }
 
+def _corroborate_chords(primary: list, secondary: list):
+    """Use the separated harmonic stem as primary and the full mix as corroboration."""
+    if not primary:
+        return secondary
+    fused = []
+    for event in primary:
+        overlaps = [
+            candidate for candidate in secondary
+            if candidate["start"] < event["end"] and candidate["end"] > event["start"]
+        ]
+        if overlaps:
+            best = max(overlaps, key=lambda item: min(item["end"], event["end"]) - max(item["start"], event["start"]))
+            event = event.copy()
+            if best["label"] == event["label"]:
+                event["confidence"] = round((event["confidence"] + best["confidence"]) / 2, 3)
+                event["source"] = "harmonic-stem+mix-chroma"
+            else:
+                event["alternatives"] = [{"label": best["label"], "score": best["confidence"], "source": "full-mix"}]
+                event["source"] = "harmonic-stem-chroma-with-mix-disagreement"
+        fused.append(event)
+    return fused
+
 def run_pipeline(job_id: str, source_path: str, progress_callback):
     job_dir = DATA_DIR / "jobs" / job_id
     job_dir.mkdir(parents=True, exist_ok=True)
@@ -161,7 +183,9 @@ def run_pipeline(job_id: str, source_path: str, progress_callback):
     progress_callback(55, "Separação concluída; transcrevendo voz")
     transcription = _transcribe(stems["vocals"])
     progress_callback(78, "Transcrição concluída; analisando harmonia")
-    chords = recognize_chords(source_path)
+    chord_harmony = recognize_chords(stems["other"])
+    chord_mix = recognize_chords(source_path)
+    chords = _corroborate_chords(chord_harmony, chord_mix)
     rhythm = analyze_rhythm(source_path)
     progress_callback(94, "Organizando resultados e metadados")
     stem_result = {}
@@ -184,7 +208,7 @@ def run_pipeline(job_id: str, source_path: str, progress_callback):
         "transcription": transcription,
         "chords": chords,
         "rhythm": rhythm,
-        "chord_note": "Acordes são estimativas baseline por chroma e templates; a similaridade não é probabilidade calibrada. Revise tensões, inversões e mudanças rápidas.",
+        "chord_note": "Acordes são estimativas baseline por chroma/template no stem harmônico, corroboradas pelo mix. Similaridade não é probabilidade calibrada; revise tensões, inversões e mudanças rápidas.",
     }
     (job_dir / "result.json").write_text(json.dumps(result, ensure_ascii=False), encoding="utf-8")
     return result
