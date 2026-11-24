@@ -40,8 +40,8 @@ O primeiro download dos pesos dos modelos pode ser grande e o processamento é p
 A interface permite:
 - selecionar/enviar áudio e acompanhar o processamento;
 - ouvir o áudio original e cada stem;
-- editar o texto reconhecido e símbolos/tempos dos acordes;
-- clicar em eventos temporais para posicionar a reprodução;
+- editar o texto reconhecido, os tempos por palavra e os símbolos/tempos dos acordes;
+- clicar em eventos temporais para posicionar a reprodução, reabrir projetos e salvar revisões no servidor;
 - exportar JSON com os timestamps e TXT com eventos em ordem cronológica.
 
 ## Limitações que ainda exigem validação
