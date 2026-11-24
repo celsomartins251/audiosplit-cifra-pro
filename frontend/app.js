@@ -148,6 +148,7 @@
     const words = result.transcription?.words || [];
     $("#lyrics-editor").value = words.map(item => item.label).join(" ");
     $("#lyric-meta").textContent = words.length + " tokens reconhecidos · " + (result.transcription?.language || "idioma não identificado") + ". Os tempos por palavra permanecem no JSON.";
+    renderWordRows(words);
     renderChordRows(result.chords || []);
     renderLyricChordView(result);
     renderTimeline(result);
@@ -222,6 +223,26 @@
       item.classList.toggle("playing", time >= start && time <= end);
     });
   });
+  function renderWordRows(words) {
+    const body = $("#word-rows"); body.replaceChildren();
+    $("#word-count").textContent = words.length + (words.length === 1 ? " palavra" : " palavras");
+    if (!words.length) {
+      const row = document.createElement("tr"), cell = document.createElement("td");
+      cell.colSpan = 3; cell.className = "empty-cell"; cell.textContent = "Nenhuma palavra com timestamp.";
+      row.append(cell); body.append(row); return;
+    }
+    words.forEach((word, index) => {
+      const row = document.createElement("tr");
+      const startCell = document.createElement("td"), endCell = document.createElement("td"), labelCell = document.createElement("td");
+      for (const [cell, field, value] of [[startCell, "start", word.start], [endCell, "end", word.end]]) {
+        const input = document.createElement("input"); input.type = "number"; input.min = "0"; input.step = "0.01";
+        input.value = value; input.dataset.index = index; input.dataset.field = field; cell.append(input);
+      }
+      const label = document.createElement("input"); label.type = "text"; label.value = word.label; label.maxLength = 100;
+      label.dataset.index = index; label.dataset.field = "label"; labelCell.append(label);
+      row.append(startCell, endCell, labelCell); body.append(row);
+    });
+  }
   function renderChordRows(chords) {
     const body = $("#chord-rows"); body.replaceChildren();
     $("#chord-count").textContent = chords.length + (chords.length === 1 ? " acorde" : " acordes");
@@ -232,11 +253,15 @@
     }
     chords.forEach((chord, index) => {
       const row = document.createElement("tr");
-      const timeCell = document.createElement("td"), chordCell = document.createElement("td"), confCell = document.createElement("td");
-      const time = document.createElement("input"); time.type = "number"; time.min = "0"; time.step = "0.01"; time.value = chord.start; time.dataset.index = index; time.dataset.field = "start";
-      const label = document.createElement("input"); label.type = "text"; label.value = chord.label; label.maxLength = 24; label.dataset.index = index; label.dataset.field = "label";
-      timeCell.append(time); chordCell.append(label); confCell.textContent = chord.confidence == null ? "—" : Math.round(chord.confidence * 100) + "%";
-      row.append(timeCell, chordCell, confCell); body.append(row);
+      const startCell = document.createElement("td"), endCell = document.createElement("td"), chordCell = document.createElement("td"), confCell = document.createElement("td");
+      for (const [cell, field, value] of [[startCell, "start", chord.start], [endCell, "end", chord.end]]) {
+        const input = document.createElement("input"); input.type = "number"; input.min = "0"; input.step = "0.01";
+        input.value = value; input.dataset.index = index; input.dataset.field = field; cell.append(input);
+      }
+      const label = document.createElement("input"); label.type = "text"; label.value = chord.label; label.maxLength = 24;
+      label.dataset.index = index; label.dataset.field = "label"; chordCell.append(label);
+      confCell.textContent = chord.confidence == null ? "—" : Math.round(chord.confidence * 100) + "%";
+      row.append(startCell, endCell, chordCell, confCell); body.append(row);
     });
   }
   async function applyEdits() {
@@ -249,11 +274,17 @@
       project.transcription.edited_text = $("#lyrics-editor").value.trim();
       project.transcription.edit_note = "Texto editado sem correspondência token a token; timestamps originais preservados.";
     }
+    document.querySelectorAll("#word-rows input").forEach((field) => {
+      const index = Number(field.dataset.index), key = field.dataset.field;
+      if (words[index]) words[index][key] = key === "start" || key === "end" ? Number(field.value) : field.value.trim();
+    });
     document.querySelectorAll("#chord-rows input").forEach((field) => {
       const index = Number(field.dataset.index), key = field.dataset.field;
-      if (project.chords[index]) project.chords[index][key] = key === "start" ? Number(field.value) : field.value.trim();
+      if (project.chords[index]) project.chords[index][key] = key === "start" || key === "end" ? Number(field.value) : field.value.trim();
     });
     project.chords.sort((a, b) => a.start - b.start);
+    words.sort((a, b) => a.start - b.start);
+    renderWordRows(words);
     renderChordRows(project.chords);
     renderLyricChordView(project);
     renderTimeline(project);
