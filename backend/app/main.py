@@ -22,7 +22,8 @@ app = FastAPI(
     version="0.3.0",
     description="API de orquestração para separação de fontes e análise musical.",
 )
-origins = [item.strip() for item in os.getenv("CORS_ORIGINS", "*").split(",") if item.strip()]
+# Fail closed: production must explicitly provide the exact frontend origins.
+origins = [item.strip() for item in os.getenv("CORS_ORIGINS", "").split(",") if item.strip() and item.strip() != "*"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -215,8 +216,8 @@ async def download_source(job_id: str):
             raise HTTPException(status_code=404, detail="Áudio original não encontrado.")
         media_type = mimetypes.guess_type(source_path.name)[0] or "application/octet-stream"
         return FileResponse(source_path, media_type=media_type, filename=Path(job.original_filename).name)
-    
-    
+
+
 @app.get("/v1/jobs/{job_id}/stems/{stem_name}")
 async def download_stem(job_id: str, stem_name: str):
     if stem_name not in {"vocals", "drums", "bass", "guitar", "piano", "other"}:
