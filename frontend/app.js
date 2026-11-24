@@ -111,6 +111,7 @@
     $("#lyrics-editor").value = words.map(item => item.label).join(" ");
     $("#lyric-meta").textContent = words.length + " tokens reconhecidos · " + (result.transcription?.language || "idioma não identificado") + ". Os tempos por palavra permanecem no JSON.";
     renderChordRows(result.chords || []);
+    renderLyricChordView(result);
     renderTimeline(result);
     const bpm = result.rhythm?.tempo_bpm;
     $("#timeline-status").textContent = words.length + " palavras · " + (result.chords || []).length + " eventos" + (bpm ? " · " + bpm + " BPM" : "");
