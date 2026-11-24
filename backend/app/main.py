@@ -4,6 +4,7 @@ import math
 import os
 import io
 import zipfile
+from xml.sax.saxutils import escape
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
@@ -14,6 +15,14 @@ from fastapi import Body, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import mm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 
 from .database import Base, SessionLocal, apply_sqlite_compat_migrations, engine
 from .models import AnalysisJob
@@ -218,6 +227,112 @@ async def download_source(job_id: str):
             raise HTTPException(status_code=404, detail="Áudio original não encontrado.")
         media_type = mimetypes.guess_type(source_path.name)[0] or "application/octet-stream"
         return FileResponse(source_path, media_type=media_type, filename=Path(job.original_filename).name)
+
+
+def _create_analysis_pdf(payload: dict) -> bytes:
+    """Builds a real UTF-8-capable PDF with lyric timing and chord events."""
+    buffer = io.BytesIO()
+    regular_font = Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
+    bold_font = Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")
+    if regular_font.is_file() and bold_font.is_file():
+        if "AudioSplitDejaVu" not in pdfmetrics.getRegisteredFontNames():
+            pdfmetrics.registerFont(TTFont("AudioSplitDejaVu", str(regular_font)))
+            pdfmetrics.registerFont(TTFont("AudioSplitDejaVu-Bold", str(bold_font)))
+        font_name, bold_name = "AudioSplitDejaVu", "AudioSplitDejaVu-Bold"
+    else:
+        font_name, bold_name = "Helvetica", "Helvetica-Bold"
+
+    styles = getSampleStyleSheet()
+    styles.add(ParagraphStyle(name="ASBody", parent=styles["BodyText"], fontName=font_name, fontSize=9, leading=13))
+    styles.add(ParagraphStyle(name="ASTitle", parent=styles["Title"], fontName=bold_name, fontSize=18, leading=22, alignment=TA_CENTER))
+    styles.add(ParagraphStyle(name="ASHeading", parent=styles["Heading2"], fontName=bold_name, fontSize=12, leading=16, spaceBefore=10, spaceAfter=6))
+    styles.add(ParagraphStyle(name="ASChord", parent=styles["BodyText"], fontName=bold_name, textColor=colors.HexColor("#9A741A"), fontSize=9, leading=12))
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=16*mm, leftMargin=16*mm, topMargin=15*mm, bottomMargin=15*mm)
+    story = []
+    audio = payload.get("audio") or {}
+    transcription = payload.get("transcription") or {}
+    words = transcription.get("words") or []
+    chords = payload.get("chords") or []
+    title = escape(Path(str(audio.get("source_filename") or "Análise musical")).stem)
+    story.extend([Paragraph(title, styles["ASTitle"]), Spacer(1, 5*mm)])
+    meta = []
+    if payload.get("job_id"):
+        meta.append("Projeto: " + escape(str(payload["job_id"])))
+    if audio.get("duration_seconds") is not None:
+        meta.append("Duração: " + str(audio["duration_seconds"]) + " s")
+    tempo = (payload.get("rhythm") or {}).get("tempo_bpm")
+    if tempo:
+        meta.append("BPM estimado: " + str(tempo))
+    story.append(Paragraph(" · ".join(meta) if meta else "AudioSplit & Cifra Pro", styles["ASBody"]))
+    story.append(Paragraph("Letra com cifras e tempos", styles["ASHeading"]))
+    if words:
+        assigned = {}
+        for chord in chords:
+            index = next((i for i, word in enumerate(words) if float(word.get("end", 0)) >= float(chord.get("start", 0))), None)
+            if index is not None:
+                assigned.setdefault(index, []).append(str(chord.get("label", "")))
+        lyric_data = [[Paragraph("<b>Tempo</b>", styles["ASBody"]), Paragraph("<b>Cifra</b>", styles["ASBody"]), Paragraph("<b>Palavra / sílaba</b>", styles["ASBody"])]]
+        for index, word in enumerate(words):
+            chord_text = " · ".join(assigned.get(index, []))
+            lyric_data.append([
+                Paragraph(f'{float(word.get("start", 0)):.2f}s', styles["ASBody"]),
+                Paragraph(escape(chord_text), styles["ASChord"]),
+                Paragraph(escape(str(word.get("label", ""))), styles["ASBody"]),
+            ])
+        lyric_table = Table(lyric_data, colWidths=[22*mm, 30*mm, 120*mm], repeatRows=1)
+        lyric_table.setStyle(TableStyle([
+            ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#EDE7D7")),
+            ("GRID", (0,0), (-1,-1), 0.25, colors.HexColor("#D2D2D2")),
+            ("VALIGN", (0,0), (-1,-1), "TOP"),
+            ("LEFTPADDING", (0,0), (-1,-1), 5), ("RIGHTPADDING", (0,0), (-1,-1), 5),
+            ("TOPPADDING", (0,0), (-1,-1), 4), ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+        ]))
+        story.append(lyric_table)
+    else:
+        edited = escape(str(transcription.get("edited_text") or "Nenhuma palavra reconhecida."))
+        story.append(Paragraph(edited, styles["ASBody"]))
+    story.append(Paragraph("Eventos harmônicos", styles["ASHeading"]))
+    chord_data = [[Paragraph("<b>Início</b>", styles["ASBody"]), Paragraph("<b>Fim</b>", styles["ASBody"]), Paragraph("<b>Acorde</b>", styles["ASBody"]), Paragraph("<b>Confiança</b>", styles["ASBody"])]]
+    for chord in chords:
+        confidence = chord.get("confidence")
+        chord_data.append([
+            Paragraph(f'{float(chord.get("start", 0)):.2f}s', styles["ASBody"]),
+            Paragraph(f'{float(chord.get("end", 0)):.2f}s', styles["ASBody"]),
+            Paragraph(escape(str(chord.get("label", ""))), styles["ASChord"]),
+            Paragraph("—" if confidence is None else f'{float(confidence)*100:.0f}%', styles["ASBody"]),
+        ])
+    if len(chord_data) == 1:
+        chord_data.append([Paragraph("Nenhum acorde reconhecido", styles["ASBody"]), "", "", ""])
+    chord_table = Table(chord_data, colWidths=[25*mm, 25*mm, 75*mm, 35*mm], repeatRows=1)
+    chord_table.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#EDE7D7")),
+        ("GRID", (0,0), (-1,-1), 0.25, colors.HexColor("#D2D2D2")),
+        ("VALIGN", (0,0), (-1,-1), "TOP"),
+        ("SPAN", (0,1), (-1,1)) if len(chord_data) == 2 and not chords else ("LEFTPADDING", (0,0), (-1,-1), 5),
+        ("LEFTPADDING", (0,0), (-1,-1), 5), ("RIGHTPADDING", (0,0), (-1,-1), 5),
+        ("TOPPADDING", (0,0), (-1,-1), 4), ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+    ]))
+    story.append(chord_table)
+    story.append(Spacer(1, 6*mm))
+    story.append(Paragraph("Observação: letra, alinhamento e acordes são resultados automáticos. Em músicas cantadas, revise especialmente sílabas, antecipações, contratempos, inversões e mudanças harmônicas rápidas.", styles["ASBody"]))
+    doc.build(story)
+    return buffer.getvalue()
+
+
+@app.get("/v1/jobs/{job_id}/export.pdf")
+async def export_analysis_pdf(job_id: str):
+    with SessionLocal() as db:
+        job = db.get(AnalysisJob, job_id)
+        if job is None or job.status != JobStatus.completed.value or not job.result_json:
+            raise HTTPException(status_code=404, detail="Análise concluída não encontrada.")
+        payload = json.loads(job.result_json)
+    pdf_bytes = _create_analysis_pdf(payload)
+    filename = f"audiosplit-cifras-{job_id}.pdf"
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
 
 
 @app.get("/v1/jobs/{job_id}/stems.zip")
