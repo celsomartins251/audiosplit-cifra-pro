@@ -45,7 +45,8 @@
         <input id="audio-file" type="file" accept="audio/*,.flac">
       </label>
       <div class="file-row" id="file-info" hidden></div>
-      <div class="actions"><button class="primary-button" id="start-analysis" disabled>Iniciar análise</button><span class="helper" id="upload-status" role="status">Nenhum áudio selecionado.</span></div>\n      <audio id="source-player" class="source-player" controls hidden></audio>
+      <div class="actions"><button class="primary-button" id="start-analysis" disabled>Iniciar análise</button><span class="helper" id="upload-status" role="status">Nenhum áudio selecionado.</span></div>
+      <audio id="source-player" class="source-player" controls hidden></audio>
       <div class="job-progress" id="job-progress" hidden><div class="progress-track"><span id="progress-fill"></span></div><div class="progress-meta"><span id="job-message">Aguardando…</span><strong id="progress-value">0%</strong></div></div>
     </section>
 
@@ -66,14 +67,16 @@
 
       <section class="panel" id="letra-cifras">
         <div class="section-heading"><div><span class="eyebrow">ETAPA 03</span><h2>Letra sincronizada com cifras</h2></div><span class="tag muted" id="timeline-status">Sem dados</span></div>
-        <div class="result-block"><label>Prévia de cifras sobre a letra — associação temporal por palavra</label><div id="lyric-chord-view" class="lyric-chord-view"><span class="empty-cell">A prévia sincronizada será exibida aqui.</span></div></div>\n        <div class="result-block"><label for="lyrics-editor">Transcrição reconhecida — editável</label><textarea id="lyrics-editor" rows="7" placeholder="A letra reconhecida aparecerá aqui…"></textarea><small id="lyric-meta">Timestamps por palavra serão mantidos no arquivo JSON.</small></div>
+        <div class="result-block"><label>Prévia de cifras sobre a letra — associação temporal por palavra</label><div id="lyric-chord-view" class="lyric-chord-view"><span class="empty-cell">A prévia sincronizada será exibida aqui.</span></div></div>
+        <div class="result-block"><label for="lyrics-editor">Transcrição reconhecida — editável</label><textarea id="lyrics-editor" rows="7" placeholder="A letra reconhecida aparecerá aqui…"></textarea><small id="lyric-meta">Timestamps por palavra serão mantidos no arquivo JSON.</small></div>
         <div class="result-block"><div class="section-heading compact"><label>Alinhamento palavra por palavra — editável</label><span id="word-count" class="tag muted">0 palavras</span></div>
           <div class="table-wrap"><table class="chord-table word-table"><thead><tr><th>Início (s)</th><th>Fim (s)</th><th>Palavra</th></tr></thead><tbody id="word-rows"><tr><td colspan="3" class="empty-cell">As palavras aparecerão após a análise.</td></tr></tbody></table></div>
         </div>
         <div class="result-block"><div class="section-heading compact"><label>Eventos harmônicos — editáveis</label><span id="chord-count" class="tag muted">0 acordes</span></div>
           <div class="table-wrap"><table class="chord-table"><thead><tr><th>Início (s)</th><th>Fim (s)</th><th>Acorde</th><th>Índice</th></tr></thead><tbody id="chord-rows"><tr><td colspan="4" class="empty-cell">Os acordes aparecerão após a análise.</td></tr></tbody></table></div>
         </div>
-        <div class="actions"><button class="secondary-button" id="save-edits" disabled>Aplicar revisões</button><span class="helper" id="edit-status">Ajuste letra, acordes e entradas antes de exportar.</span></div>\n        <div class="result-block"><label>Eventos na linha do tempo — selecione para ouvir a partir do ponto</label><div id="timeline-events" class="timeline-events"><span class="empty-cell">A timeline será montada após a análise.</span></div></div>
+        <div class="actions"><button class="secondary-button" id="save-edits" disabled>Aplicar revisões</button><span class="helper" id="edit-status">Ajuste letra, acordes e entradas antes de exportar.</span></div>
+        <div class="result-block"><label>Eventos na linha do tempo — selecione para ouvir a partir do ponto</label><div id="timeline-events" class="timeline-events"><span class="empty-cell">A timeline será montada após a análise.</span></div></div>
       </section>
     </section>
 
