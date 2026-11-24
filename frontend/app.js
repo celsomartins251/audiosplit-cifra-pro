@@ -147,7 +147,7 @@
     });
     const words = result.transcription?.words || [];
     $("#lyrics-editor").value = words.map(item => item.label).join(" ");
-    $("#lyric-meta").textContent = words.length + " tokens reconhecidos · " + (result.transcription?.language || "idioma não identificado") + ". Os tempos por palavra permanecem no JSON.";
+    $("#lyric-meta").textContent = words.length + " tokens reconhecidos · " + (result.transcription?.language || "idioma não identificado") + " · " + (result.transcription?.alignment_method || "timestamp ASR") + ". " + (result.transcription?.alignment_note || "Tempos estimados; revise o canto.");
     renderWordRows(words);
     renderChordRows(result.chords || []);
     renderLyricChordView(result);
