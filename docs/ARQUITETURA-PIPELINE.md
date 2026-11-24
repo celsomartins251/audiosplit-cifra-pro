@@ -15,7 +15,7 @@
 - Modelo padrão: Demucs `htdemucs_ft`, quatro stems (vocals, drums, bass, other).
 - Perfil alternativo: `htdemucs_6s`, seis stems (vocals, drums, bass, guitar, piano, other).
 - O perfil de seis stems não é automaticamente considerado melhor; comparar SI-SDR e ouvir os stems no mesmo conjunto de referência.
-- O modelo e os pesos são baixados no primeiro processamento e armazenados no volume de cache.
+- O modelo e os pesos são baixados no primeiro processamento e armazenados no volume de cache. Como a licença comercial dos pesos não está confirmada, o worker exige `ALLOW_UNCLEARED_MODEL_WEIGHTS=true`; o Compose define essa opção apenas para desenvolvimento/teste privado.
 
 ## Voz e alinhamento
 
@@ -45,5 +45,5 @@ Execute `docker compose up --build`. API em `http://localhost:8000`; OpenAPI em 
 - A análise de acordes é baseline por templates, não modelo ACR neural de produção.
 - Não há separação individual de todos os instrumentos além dos stems oferecidos pelo modelo.
 - SQLite e volume local são apenas para desenvolvimento.
-- Não há autenticação, cotas, expiração automática, antivírus ou isolamento multiusuário.
+- Não há autenticação, cotas, expiração automática, antivírus ou isolamento multiusuário. O perfil de pesos Demucs do Compose não está liberado para assumir uso comercial.
 - Não exponha o backend publicamente até implementar segurança, banco gerenciado, storage privado, logs/monitoramento e políticas de retenção.
