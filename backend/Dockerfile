@@ -4,7 +4,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg libsndfi
 WORKDIR /app
 ARG INSTALL_WHISPERX=true
 COPY requirements.txt requirements-alignment.txt ./
-RUN pip install --no-cache-dir -r requirements.txt && if [ "$INSTALL_WHISPERX" = "true" ]; then pip install --no-cache-dir "whisperx>=3.3,<4.0"; fi
+RUN if [ "$INSTALL_WHISPERX" = "true" ]; then pip install --no-cache-dir -r requirements-alignment.txt; else pip install --no-cache-dir -r requirements.txt; fi
 COPY app ./app
 RUN useradd --create-home appuser && mkdir -p /data/uploads /data/jobs /models && chown -R appuser:appuser /app /data /models
 USER appuser
