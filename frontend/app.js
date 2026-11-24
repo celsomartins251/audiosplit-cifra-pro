@@ -16,13 +16,13 @@
   $("#job-id-input").value = localStorage.getItem("audiosplit-last-job") || "";
 
   function apiBase() {
-    const value = apiInput.value.trim().replace(/\\/+$/, "");
-    if (!/^https?:\\/\\//i.test(value)) {
+    const value = apiInput.value.trim().replace(/\/+$/, "");
+    if (!/^https?:\/\//i.test(value)) {
       throw new Error(hostedFrontend
         ? "Informe o endereço HTTPS do servidor. O site público não executa os modelos de áudio sozinho."
         : "Informe um endereço HTTP ou HTTPS válido para a API.");
     }
-    if (hostedFrontend && /localhost|127\\.0\\.0\\.1/i.test(value)) {
+    if (hostedFrontend && /localhost|127\.0\.0\.1/i.test(value)) {
       throw new Error("No site público, localhost aponta para o próprio aparelho. Informe o endereço público do servidor.");
     }
     return value;
