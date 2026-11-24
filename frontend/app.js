@@ -268,6 +268,8 @@
     const words = project.transcription?.words || [];
     const editedWords = $("#lyrics-editor").value.trim().split(/\s+/).filter(Boolean);
     if (editedWords.length === words.length) {
+      delete project.transcription.edited_text;
+      delete project.transcription.edit_note;
       words.forEach((word, index) => { word.label = editedWords[index]; });
     } else {
       project.transcription.edited_text = $("#lyrics-editor").value.trim();
