@@ -23,6 +23,7 @@ def test_sustained_c_major_is_returned_as_one_non_overlapping_event(monkeypatch)
     assert events[0]["label"] == "C"
     assert events[0]["start"] == 0.0
     assert events[0]["end"] <= duration
+    assert all(event["end"] > event["start"] for event in events)
     assert events[0]["end"] - events[0]["start"] >= 0.35
     assert 0.0 <= events[0]["confidence"] <= 1.0
 
