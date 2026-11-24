@@ -36,7 +36,7 @@
       selectedFile = null; startButton.disabled = true;
       setStatus("O arquivo excede o limite inicial de 250 MB.", true); return;
     }
-    selectedFile = file; fileInfo.hidden = false;
+    selectedFile = file; fileInfo.hidden = false;\n    const sourcePlayer = $("#source-player");\n    if (sourcePlayer.dataset.objectUrl) URL.revokeObjectURL(sourcePlayer.dataset.objectUrl);\n    sourcePlayer.dataset.objectUrl = URL.createObjectURL(file);\n    sourcePlayer.src = sourcePlayer.dataset.objectUrl; sourcePlayer.hidden = false;
     fileInfo.textContent = file.name + " · " + formatBytes(file.size);
     startButton.disabled = false;
     setStatus("Arquivo selecionado. Pronto para enviar ao servidor.");
@@ -106,12 +106,49 @@
     const words = result.transcription?.words || [];
     $("#lyrics-editor").value = words.map(item => item.label).join(" ");
     $("#lyric-meta").textContent = words.length + " tokens reconhecidos · " + (result.transcription?.language || "idioma não identificado") + ". Os tempos por palavra permanecem no JSON.";
-    renderChordRows(result.chords || []);
+    renderChordRows(result.chords || []);\n    renderTimeline(result);
     $("#timeline-status").textContent = words.length + " palavras · " + (result.chords || []).length + " eventos";
     $("#export-status").textContent = "Projeto pronto para revisão";
     $("#save-edits").disabled = false; $("#export-json").disabled = false; $("#export-text").disabled = false;
     $("#edit-status").textContent = result.chord_note || "Revise os eventos antes de exportar.";
   }
+  function formatTime(seconds) {
+    const value = Math.max(0, Number(seconds) || 0);
+    return Math.floor(value / 60) + ":" + String(Math.floor(value % 60)).padStart(2, "0") + "." + String(Math.floor((value % 1) * 10));
+  }
+  function renderTimeline(result) {
+    const container = $("#timeline-events"); container.replaceChildren();
+    const words = result.transcription?.words || [];
+    const events = [
+      ...words.map((item, index) => ({ ...item, kind: "word", index })),
+      ...(result.chords || []).map((item, index) => ({ ...item, kind: "chord", index }))
+    ].sort((a, b) => a.start - b.start);
+    if (!events.length) {
+      const empty = document.createElement("span"); empty.className = "empty-cell"; empty.textContent = "Nenhum evento temporal foi reconhecido.";
+      container.append(empty); return;
+    }
+    events.forEach(event => {
+      const button = document.createElement("button");
+      button.type = "button"; button.className = "timeline-event " + event.kind;
+      button.dataset.start = event.start; button.dataset.end = event.end;
+      const time = document.createElement("small"); time.textContent = formatTime(event.start);
+      const label = document.createElement("strong"); label.textContent = event.kind === "chord" ? event.label : event.label.trim();
+      const type = document.createElement("em"); type.textContent = event.kind === "chord" ? "ACORDE" : "LETRA";
+      button.append(time, label, type);
+      button.addEventListener("click", () => {
+        const player = $("#source-player"); player.currentTime = Number(event.start);
+        player.play().catch(() => {});
+      });
+      container.append(button);
+    });
+  }
+  $("#source-player").addEventListener("timeupdate", () => {
+    const time = $("#source-player").currentTime;
+    document.querySelectorAll(".timeline-event").forEach(item => {
+      const start = Number(item.dataset.start), end = Number(item.dataset.end);
+      item.classList.toggle("playing", time >= start && time <= end);
+    });
+  });
   function renderChordRows(chords) {
     const body = $("#chord-rows"); body.replaceChildren();
     $("#chord-count").textContent = chords.length + (chords.length === 1 ? " acorde" : " acordes");
@@ -145,7 +182,7 @@
     });
     project.chords.sort((a, b) => a.start - b.start);
     $("#edit-status").textContent = "Revisões aplicadas nesta sessão. Exporte o projeto para salvá-las.";
-    renderChordRows(project.chords);
+    renderChordRows(project.chords);\n    renderTimeline(project);
   }
   function downloadFile(filename, content, mime) {
     const blob = new Blob([content], { type: mime });
