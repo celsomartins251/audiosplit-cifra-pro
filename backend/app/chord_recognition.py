@@ -78,8 +78,13 @@ def recognize_chords(audio_path: str, window_seconds: float = 0.75, hop_seconds:
         # Conservative abstention: ambiguous frames are not forced into a chord.
         if best_score < 0.48 or margin < 0.015:
             continue
-        start = center_frame * hop / sr
-        end = min(len(y) / sr, (center_frame + frames_per_hop) * hop / sr)
+        duration = len(y) / sr
+        start = min(duration, center_frame * hop / sr)
+        end = min(duration, (center_frame + frames_per_hop) * hop / sr)
+        # CQT may expose padded frames beyond the original signal duration.
+        # Never emit zero-length or reversed events at the audio boundary.
+        if end <= start:
+            continue
         events.append({
             "start": round(start, 3),
             "end": round(end, 3),
