@@ -22,6 +22,9 @@
         ? "Informe o endereço HTTPS do servidor. O site público não executa os modelos de áudio sozinho."
         : "Informe um endereço HTTP ou HTTPS válido para a API.");
     }
+    if (hostedFrontend && !value.startsWith("https://")) {
+      throw new Error("O servidor precisa usar HTTPS para funcionar com o site público.");
+    }
     if (hostedFrontend && /localhost|127\.0\.0\.1/i.test(value)) {
       throw new Error("No site público, localhost aponta para o próprio aparelho. Informe o endereço público do servidor.");
     }
