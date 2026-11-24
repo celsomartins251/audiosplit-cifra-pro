@@ -1,23 +1,15 @@
 # AudioSplit & Cifra Pro
 
-Aplicativo para separação de fontes de áudio e sincronização temporal de cifras com a letra.
+Aplicativo web para separação de fontes de áudio, transcrição vocal, reconhecimento harmônico e sincronização temporal de letra e cifras.
 
-## Objetivos
+## Estrutura
 
-- Separar voz, bateria, baixo e instrumentos harmônicos.
-- Transcrever a letra e manter timestamps por palavra; alinhamento silábico será avaliado.
-- Reconhecer acordes, inversões, extensões e mudanças harmônicas.
-- Sincronizar cifras pela ocorrência real da mudança, inclusive antecipações e contratempos.
-- Permitir revisão manual e exportação.
+- `frontend/`: interface responsiva, player da música original, players dos stems, timeline clicável, editor e exportação.
+- `backend/app/`: API FastAPI, banco SQLAlchemy, fila Celery, pipeline de áudio, ASR, alinhamento opcional e reconhecimento harmônico.
+- `docker-compose.yml`: API, worker e Redis.
+- `docs/`: contratos de dados e arquitetura.
 
-## Estrutura atual
-
-- `frontend/`: interface responsiva HTML, CSS e JavaScript.
-- `backend/app/`: API FastAPI, persistência SQLAlchemy e tarefas Celery.
-- `docker-compose.yml`: ambiente local com API, worker e Redis.
-- `docs/`: contratos de dados e arquitetura do pipeline.
-
-## Executar infraestrutura local
+## Inicialização local
 
 Requer Docker e Docker Compose:
 
@@ -25,24 +17,49 @@ Requer Docker e Docker Compose:
 docker compose up --build
 ```
 
-- API: `http://localhost:8000`
-- OpenAPI: `http://localhost:8000/docs`
-- Health check: `http://localhost:8000/health`
+A API estará em `http://localhost:8000`; documentação em `http://localhost:8000/docs`; health check em `/health`.
 
-A API recebe arquivos de áudio em `POST /v1/jobs` e consulta o estado em `GET /v1/jobs/{job_id}`. O limite inicial de upload é 250 MB. Os arquivos e o banco SQLite ficam no volume Docker `audiosplit_data`.
+Abra a interface em `frontend/index.html` por um servidor estático ou habilite GitHub Pages na raiz do repositório. No campo “Endereço da API”, informe o endereço do backend acessível pelo navegador. `localhost` só funciona quando o navegador e o Docker estão na mesma máquina.
 
-## Estado técnico
+## Pipeline implementado
 
-A recepção, persistência e fila assíncrona estão estruturadas. O worker ainda não executa separação, ASR, alinhamento ou reconhecimento de acordes: ele registra uma falha controlada e explícita até que os modelos sejam selecionados, integrados e testados. Portanto, não há ainda resultado musical real nem precisão de produção reivindicada.
+1. Upload com validação de extensão e limite de 250 MB.
+2. Persistência do job e arquivo em volume privado.
+3. Fila assíncrona Celery/Redis.
+4. Separação de quatro stems com Demucs `htdemucs_ft`: vocals, drums, bass e other.
+5. Transcrição da voz com faster-whisper, configurada inicialmente para português.
+6. Alinhamento forçado opcional com WhisperX/Wav2Vec2. Se o alinhador não carregar ou falhar, o pipeline mantém os timestamps estimados do ASR e registra a limitação.
+7. Estimativa de acordes por chroma CQT e templates, com eventos não sobrepostos.
+8. Estimativa de BPM e pulsos.
+9. Resultado JSON, consulta de estado e download individual dos stems.
 
-SQLite é apenas para desenvolvimento. Antes de disponibilizar o serviço publicamente, será necessário migrar para banco gerenciado, armazenamento de objetos privado, autenticação, limites por usuário, política de retenção e observabilidade.
+O primeiro download dos pesos dos modelos pode ser grande e o processamento é pesado. O Compose atual é uma configuração de desenvolvimento em CPU; para produção, recomenda-se worker com GPU, fila/banco gerenciados e armazenamento de objetos.
 
-## Critérios de validação
+## Interface
 
-- Separação: SI-SDR/SDR e avaliação auditiva por stem.
-- Letra: WER/CER, incluindo testes específicos de canto em português brasileiro.
-- Alinhamento: erro temporal de início/fim.
-- Acordes: precisão/recall de símbolos e F-score de fronteiras harmônicas.
-- Sincronização: erro temporal entre a mudança anotada e a cifra exibida.
+A interface permite:
+- selecionar/enviar áudio e acompanhar o processamento;
+- ouvir o áudio original e cada stem;
+- editar o texto reconhecido e símbolos/tempos dos acordes;
+- clicar em eventos temporais para posicionar a reprodução;
+- exportar JSON com os timestamps e TXT com eventos em ordem cronológica.
 
-Consulte `docs/CONTRATOS-DE-DADOS.md` e `docs/ARQUITETURA-PIPELINE.md`.
+## Limitações que ainda exigem validação
+
+- Demucs `htdemucs_ft` gera quatro grupos; guitarra e piano permanecem dentro de “other”.
+- Whisper/Wav2Vec2 foram treinados principalmente para fala. Em canto, transcrição e alinhamento podem errar, mesmo quando o modelo retorna confiança.
+- O alinhamento de caracteres não equivale automaticamente a divisão silábica musical.
+- O reconhecedor de acordes é um baseline por chroma/template; o índice de similaridade não é probabilidade calibrada. Tensões, inversões, acordes rápidos e arranjos densos exigem revisão.
+- BPM e pulsos são estimativas; o compasso não é inferido nesta versão.
+- Não há autenticação, cotas, política de retenção, antivírus ou proteção contra abuso. Não exponha o backend publicamente antes de adicionar esses controles.
+
+## Validação
+
+A suíte automatizada verifica sintaxe do frontend/backend e padrões sintéticos de acordes. A validação de separação e ASR com gravações musicais reais ainda depende de conjunto de referência e execução em servidor com os modelos baixados.
+
+Métricas previstas:
+- separação: SI-SDR/SDR e avaliação auditiva por stem;
+- letra: WER/CER em repertório cantado em português brasileiro;
+- alinhamento: erro temporal de início/fim;
+- acordes: precisão/recall de símbolos e F-score de fronteiras;
+- sincronização: diferença temporal entre mudança harmônica anotada e evento exibido.
