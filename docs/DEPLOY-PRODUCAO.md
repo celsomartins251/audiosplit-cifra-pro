@@ -84,3 +84,17 @@ A API agora não habilita CORS por padrão. A variável `CORS_ORIGINS` deve list
 ## Bloqueio de segurança ainda aberto
 
 Os endpoints de jobs ainda não vinculam cada projeto a uma conta autenticada. Portanto, não publique a API nem permita uploads de terceiros até implementar autenticação e autorização por proprietário em todas as rotas de consulta, edição e download. O identificador UUID não é controle de acesso.
+
+
+## Exportações implementadas
+
+Após uma análise concluída e com a API acessível, a interface oferece:
+
+- PDF gerado no backend com título do áudio, metadados, letra palavra a palavra, timestamps e cifras associadas temporalmente.
+- ZIP com todos os stems WAV realmente produzidos pelo modelo configurado.
+- Download individual de cada stem WAV.
+- Exportação local do projeto JSON, eventos TXT e formato ChordPro.
+
+Endpoints adicionais: `GET /v1/jobs/{job_id}/export.pdf` e `GET /v1/jobs/{job_id}/stems.zip`. A exportação ZIP inclui somente as faixas presentes no resultado. Com `htdemucs_ft`, normalmente são voz, bateria, baixo e outros; guitarra e piano individuais exigem modelo compatível de seis stems, sujeito à verificação de licença.
+
+Essas rotas ainda herdam a pendência de autenticação/autorização descrita acima. Não disponibilize a API publicamente até que cada job esteja vinculado a um usuário autenticado e todas as rotas validem a propriedade do job.
