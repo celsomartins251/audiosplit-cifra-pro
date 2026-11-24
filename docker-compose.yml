@@ -3,7 +3,7 @@ services:
     build: ./backend
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
       DATABASE_URL: sqlite:////data/audiosplit.db
       UPLOAD_DIR: /data/uploads
@@ -14,7 +14,7 @@ services:
       XDG_CACHE_HOME: /models/cache
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
-      CORS_ORIGINS: "*"
+      CORS_ORIGINS: "http://localhost:8080,http://127.0.0.1:8080"
       DEMUCS_MODEL: htdemucs_ft
       DEMUCS_SHIFTS: "2"
       WHISPER_MODEL: small
