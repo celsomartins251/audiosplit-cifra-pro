@@ -8,13 +8,23 @@
   let selectedFile = null, activeJobId = null, project = null, polling = false;
 
   const allowedExtensions = new Set(["mp3", "wav", "flac", "m4a", "ogg"]);
-  const savedApi = localStorage.getItem("audiosplit-api-url") || "http://localhost:8000";
+  const hostedFrontend = location.hostname.endsWith("github.io");
+  const localApiDefault = hostedFrontend ? "" : "http://localhost:8000";
+  const savedApi = localStorage.getItem("audiosplit-api-url") || localApiDefault;
   apiInput.value = savedApi;
+  apiInput.placeholder = hostedFrontend ? "https://endereco-publico-da-api" : "http://localhost:8000";
   $("#job-id-input").value = localStorage.getItem("audiosplit-last-job") || "";
 
   function apiBase() {
-    const value = apiInput.value.trim().replace(/\/+$/, "");
-    if (!/^https?:\/\//i.test(value)) throw new Error("Informe um endereço HTTP ou HTTPS válido para a API.");
+    const value = apiInput.value.trim().replace(/\\/+$/, "");
+    if (!/^https?:\\/\\//i.test(value)) {
+      throw new Error(hostedFrontend
+        ? "Informe o endereço HTTPS do servidor. O site público não executa os modelos de áudio sozinho."
+        : "Informe um endereço HTTP ou HTTPS válido para a API.");
+    }
+    if (hostedFrontend && /localhost|127\\.0\\.0\\.1/i.test(value)) {
+      throw new Error("No site público, localhost aponta para o próprio aparelho. Informe o endereço público do servidor.");
+    }
     return value;
   }
   function setStatus(message, isError = false) {
