@@ -9,3 +9,5 @@
 
 .project-load{display:grid;grid-template-columns:minmax(120px,1fr) minmax(180px,2fr) auto;align-items:center;gap:9px;margin:0 0 13px}.project-load label{font-size:12px;color:var(--muted)}.project-load input{min-width:0;background:#111;border:1px solid var(--line);border-radius:6px;color:var(--text);padding:9px 10px}
 @media(max-width:700px){.project-load{grid-template-columns:1fr 1fr}.project-load label{grid-column:1/-1}.project-load input{grid-column:1/2}.project-load button{grid-column:2/3}}
+
+.unmapped-lyrics{color:var(--text);font-size:14px;line-height:1.7;padding:8px}.lyric-chord-view>small{color:var(--muted);font-size:10px;align-self:flex-end}
