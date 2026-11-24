@@ -196,6 +196,18 @@ async def update_job_result(job_id: str, payload: dict = Body(...)):
     return {"saved": True, "job_id": job_id, "message": "Revisões salvas no projeto."}
 
 
+@app.get("/v1/jobs/{job_id}/source")
+async def download_source(job_id: str):
+    with SessionLocal() as db:
+        job = db.get(AnalysisJob, job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail="Projeto não encontrado.")
+        source_path = Path(job.audio_path)
+        if not source_path.is_file():
+            raise HTTPException(status_code=404, detail="Áudio original não encontrado.")
+        return FileResponse(source_path, filename=Path(job.original_filename).name)
+    
+    
 @app.get("/v1/jobs/{job_id}/stems/{stem_name}")
 async def download_stem(job_id: str, stem_name: str):
     if stem_name not in {"vocals", "drums", "bass", "guitar", "piano", "other"}:
