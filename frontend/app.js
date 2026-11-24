@@ -201,7 +201,7 @@
       row.append(timeCell, chordCell, confCell); body.append(row);
     });
   }
-  function applyEdits() {
+  async function applyEdits() {
     if (!project) return;
     const words = project.transcription?.words || [];
     const editedWords = $("#lyrics-editor").value.trim().split(/\s+/).filter(Boolean);
@@ -216,10 +216,22 @@
       if (project.chords[index]) project.chords[index][key] = key === "start" ? Number(field.value) : field.value.trim();
     });
     project.chords.sort((a, b) => a.start - b.start);
-    $("#edit-status").textContent = "Revisões aplicadas nesta sessão. Exporte o projeto para salvá-las.";
     renderChordRows(project.chords);
     renderLyricChordView(project);
     renderTimeline(project);
+    $("#edit-status").textContent = "Revisões aplicadas. Salvando no servidor…";
+    try {
+      const response = await fetch(apiBase() + "/v1/jobs/" + encodeURIComponent(project.job_id) + "/result", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(project)
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.detail || "Falha ao salvar revisões.");
+      $("#edit-status").textContent = "Revisões salvas no servidor.";
+    } catch (error) {
+      $("#edit-status").textContent = "Revisões mantidas nesta sessão, mas não salvas no servidor: " + error.message;
+    }
   }
   function downloadFile(filename, content, mime) {
     const blob = new Blob([content], { type: mime });
