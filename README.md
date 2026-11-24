@@ -53,7 +53,12 @@ A interface permite:
 - BPM e pulsos são estimativas; o compasso não é inferido nesta versão.
 - Não há autenticação, cotas, política de retenção, antivírus ou proteção contra abuso. Não exponha o backend publicamente antes de adicionar esses controles.
 
-## Configuração de modelos\n\nPor padrão, o Compose usa `htdemucs_ft`, `small` do faster-whisper e alinhamento WhisperX em CPU. Para experimentar seis stems (guitarra e piano separados), altere `DEMUCS_MODEL=htdemucs_6s` no serviço `worker`. Esse modelo deve ser comparado em gravações reais antes de ser considerado superior. Para um servidor com GPU, configure PyTorch/CUDA e `WHISPER_DEVICE=cuda`, `WHISPER_COMPUTE_TYPE=float16` e `ALIGNMENT_DEVICE=cuda`, usando uma imagem Docker compatível com o driver NVIDIA.\n\n## Validação\n
+## Configuração de modelos
+
+Por padrão, o Compose usa `htdemucs_ft`, `small` do faster-whisper e alinhamento WhisperX em CPU. Para experimentar seis stems (guitarra e piano separados), altere `DEMUCS_MODEL=htdemucs_6s` no serviço `worker`. Esse modelo deve ser comparado em gravações reais antes de ser considerado superior. Para um servidor com GPU, configure PyTorch/CUDA e `WHISPER_DEVICE=cuda`, `WHISPER_COMPUTE_TYPE=float16` e `ALIGNMENT_DEVICE=cuda`, usando uma imagem Docker compatível com o driver NVIDIA.
+
+## Validação
+
 A suíte automatizada verifica sintaxe do frontend/backend e padrões sintéticos de acordes. A validação de separação e ASR com gravações musicais reais ainda depende de conjunto de referência e execução em servidor com os modelos baixados.
 
 Métricas previstas:
