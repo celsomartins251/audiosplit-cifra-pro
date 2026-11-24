@@ -10,8 +10,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-from faster_whisper import WhisperModel
-
 from .chord_recognition import recognize_chords
 from .rhythm import analyze_rhythm
 
@@ -33,6 +31,7 @@ def _package_version(name: str):
 def _get_asr():
     global _asr
     if _asr is None:
+        from faster_whisper import WhisperModel
         device = os.getenv("WHISPER_DEVICE", "cpu")
         compute_type = os.getenv("WHISPER_COMPUTE_TYPE", "int8")
         _asr = WhisperModel(ASR_MODEL, device=device, compute_type=compute_type, download_root=str(MODEL_DIR / "whisper"))
@@ -70,6 +69,9 @@ def _probe_audio(input_path: Path):
         "container": input_path.suffix.lower().lstrip("."),
     }
 
+def _expected_stems(model_name: str):
+    return ("vocals", "drums", "bass", "guitar", "piano", "other") if model_name.endswith("_6s") else ("vocals", "drums", "bass", "other")
+
 def _run_demucs(input_path: Path, output_dir: Path):
     output_dir.mkdir(parents=True, exist_ok=True)
     command = [
@@ -86,7 +88,7 @@ def _run_demucs(input_path: Path, output_dir: Path):
     if not stem_dir.is_dir():
         raise RuntimeError("O Demucs terminou sem produzir a pasta de stems esperada.")
     stems = {}
-    expected_stems = ("vocals", "drums", "bass", "guitar", "piano", "other") if SEPARATION_MODEL.endswith("_6s") else ("vocals", "drums", "bass", "other")
+    expected_stems = _expected_stems(SEPARATION_MODEL)
     for name in expected_stems:
         path = stem_dir / f"{name}.wav"
         if path.exists():
