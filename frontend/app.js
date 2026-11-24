@@ -111,10 +111,38 @@
     $("#lyrics-editor").value = words.map(item => item.label).join(" ");
     $("#lyric-meta").textContent = words.length + " tokens reconhecidos · " + (result.transcription?.language || "idioma não identificado") + ". Os tempos por palavra permanecem no JSON.";
     renderChordRows(result.chords || []);\n    renderTimeline(result);
-    $("#timeline-status").textContent = words.length + " palavras · " + (result.chords || []).length + " eventos";
+    const bpm = result.rhythm?.tempo_bpm;\n    $("#timeline-status").textContent = words.length + " palavras · " + (result.chords || []).length + " eventos" + (bpm ? " · " + bpm + " BPM" : "");
     $("#export-status").textContent = "Projeto pronto para revisão";
     $("#save-edits").disabled = false; $("#export-json").disabled = false; $("#export-text").disabled = false;
     $("#edit-status").textContent = result.chord_note || "Revise os eventos antes de exportar.";
+  }
+  function renderLyricChordView(result) {
+    const container = $("#lyric-chord-view"); container.replaceChildren();
+    const words = result.transcription?.words || [];
+    const chords = result.chords || [];
+    if (!words.length) {
+      const empty = document.createElement("span"); empty.className = "empty-cell";
+      empty.textContent = "Sem palavras com timestamp para posicionar as cifras.";
+      container.append(empty); return;
+    }
+    const assigned = new Map();
+    chords.forEach(chord => {
+      const index = words.findIndex(word => Number(word.end) >= Number(chord.start));
+      if (index >= 0) {
+        if (!assigned.has(index)) assigned.set(index, []);
+        assigned.get(index).push(chord);
+      }
+    });
+    words.forEach((word, index) => {
+      const token = document.createElement("span"); token.className = "lyric-token";
+      const chordLine = document.createElement("span"); chordLine.className = "lyric-chord-labels";
+      (assigned.get(index) || []).forEach(chord => {
+        const badge = document.createElement("strong"); badge.textContent = chord.label; chordLine.append(badge);
+      });
+      const wordLabel = document.createElement("span"); wordLabel.className = "lyric-word"; wordLabel.textContent = word.label;
+      const time = document.createElement("small"); time.textContent = formatTime(word.start);
+      token.append(chordLine, wordLabel, time); container.append(token);
+    });
   }
   function formatTime(seconds) {
     const value = Math.max(0, Number(seconds) || 0);
@@ -186,7 +214,7 @@
     });
     project.chords.sort((a, b) => a.start - b.start);
     $("#edit-status").textContent = "Revisões aplicadas nesta sessão. Exporte o projeto para salvá-las.";
-    renderChordRows(project.chords);\n    renderTimeline(project);
+    renderChordRows(project.chords);\n    renderLyricChordView(project);\n    renderTimeline(project);
   }
   function downloadFile(filename, content, mime) {
     const blob = new Blob([content], { type: mime });
